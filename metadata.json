@@ -1,0 +1,6 @@
+{
+  "name": "Maze Arrows",
+  "description": "لعبة ألغاز المسارات والأسهم المتشابكة الذكية Maze Arrows مع خوارزمية البناء العكسي وفاحص الحلول",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
