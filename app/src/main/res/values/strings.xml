@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Maze Arrows</string>
+    <string name="app_subtitle">ألغاز المسارات المتشابكة الذكية</string>
+    <string name="play_now">العب الآن</string>
+    <string name="continue_level">متابعة المستوى %1$d</string>
+    <string name="select_level">اختيار المراحل</string>
+    <string name="custom_generator">مولّد المراحل الذكي + Solver</string>
+    <string name="settings_title">الإعدادات</string>
+    <string name="sound_effects">صوت</string>
+    <string name="vibration">اهتزاز</string>
+    <string name="background_music">موسيقى</string>
+    <string name="voice_encouragement">الصوت التشجيعي</string>
+    <string name="restart_level">إعادة التشغيل</string>
+    <string name="hint_movable_count">حاليًا يمكن تحريك %1$d سهم</string>
+    <string name="undo_move">تراجع</string>
+    <string name="hint_action">تلميح</string>
+    <string name="solver_step">خطوة Solver</string>
+    <string name="reset_zoom">ملاءمة الشاشة</string>
+    <string name="level_label">المستوى %1$d</string>
+    <string name="diff_easy">سهل</string>
+    <string name="diff_medium">متوسط</string>
+    <string name="diff_hard">صعب</string>
+    <string name="diff_expert">خبير</string>
+    <string name="diff_pro">احترافي</string>
+    <string name="victory_title">أحسنت! اكتمل المستوى</string>
+    <string name="game_over_title">نفدت المحاولات!</string>
+    <string name="next_level">المستوى التالي</string>
+    <string name="try_again">إعادة المحاولة</string>
+    <string name="refill_hearts">استعادة القلوب (مجاني)</string>
+    <string name="theme_selector">تغيير مظهر اللوحة</string>
+</resources>
