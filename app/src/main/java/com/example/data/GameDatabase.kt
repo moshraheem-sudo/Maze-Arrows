@@ -20,7 +20,12 @@ data class LevelProgressEntity(
     val starsEarned: Int = 0,
     val bestScore: Int = 0,
     val bestTimeSeconds: Int = 0,
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val savedRemainingArrowIdsCsv: String = "",
+    val savedRemainingSeconds: Int = 0,
+    val savedElapsedSeconds: Int = 0,
+    val savedLivesRemaining: Int = 5,
+    val hasSavedProgress: Boolean = false
 )
 
 @Entity(tableName = "player_profile")
@@ -37,7 +42,9 @@ data class PlayerProfileEntity(
     val musicEnabled: Boolean = true,
     val voiceEnabled: Boolean = true,
     val selectedThemeId: String = "amaze_classic",
-    val themeMode: String = "SYSTEM",
+    val themeMode: String = "LIGHT",
+    val arrowTipStyle: String = "CLASSIC_TRIANGLE",
+    val eyeProtectionMode: Boolean = false,
     val totalPurchasesCount: Int = 0,
     val purchaseTimestampsCsv: String = "",
     val lockedDifficultyTierName: String = "",
@@ -71,7 +78,7 @@ interface GameProgressDao {
 
 @Database(
     entities = [LevelProgressEntity::class, PlayerProfileEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AmazeDatabase : RoomDatabase() {

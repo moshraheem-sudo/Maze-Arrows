@@ -40,8 +40,8 @@ class ExampleUnitTest {
             level25.arrows.size > level5.arrows.size
         )
         assertTrue(
-            "Level 250 (${level250.arrows.size}) must have more arrows than Level 25 (${level25.arrows.size})",
-            level250.arrows.size > level25.arrows.size
+            "Level 250 (${level250.arrows.size}) must be a massive master board with at least 150 arrows",
+            level250.arrows.size >= 150
         )
 
         val sampleLevels = listOf(level1, level2, level5, level25, level250)

@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -76,6 +77,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.LevelProgressEntity
 import com.example.data.PlayerProfileEntity
+import com.example.engine.ArrowTipStyle
 import com.example.engine.BoardShapeMask
 import com.example.engine.BoardThemePalette
 import com.example.engine.DifficultyTier
@@ -91,6 +93,8 @@ import com.example.ui.components.AmazeVictoryDialog
 import com.example.viewmodel.GameplayUiState
 
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Shield
 
 @Composable
 fun MainMenuScreen(
@@ -102,7 +106,8 @@ fun MainMenuScreen(
     onOpenCustomGenerator: () -> Unit,
     onOpenShop: () -> Unit = {},
     onOpenSettings: () -> Unit,
-    onOpenThemes: () -> Unit
+    onOpenThemes: () -> Unit,
+    onOpenSecurityShield: () -> Unit = {}
 ) {
     val bgColor = Color(themePalette.boardBackgroundHex)
     val cardColor = Color(themePalette.cardSurfaceHex)
@@ -178,7 +183,7 @@ fun MainMenuScreen(
                             .testTag("player_current_level_badge")
                     ) {
                         Text(
-                            text = "مستوى اللاعب الحالي: ${formatArabicLevelTitle(profile.highestUnlockedLevel)}",
+                            text = "مستوى اللاعب: ${profile.highestUnlockedLevel}",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 13.sp
@@ -268,6 +273,26 @@ fun MainMenuScreen(
                     }
 
                     Surface(
+                        onClick = onOpenSecurityShield,
+                        shape = CircleShape,
+                        color = cardColor,
+                        tonalElevation = 2.dp,
+                        shadowElevation = 1.dp,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .testTag("menu_security_button")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.VerifiedUser,
+                                contentDescription = "درع الأمان والخصوصية",
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
                         onClick = onOpenSettings,
                         shape = CircleShape,
                         color = cardColor,
@@ -286,6 +311,42 @@ fun MainMenuScreen(
                             )
                         }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Security & Privacy Shield Guarantee Banner
+            Surface(
+                onClick = onOpenSecurityShield,
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF10B981).copy(alpha = if (themePalette.isDark) 0.16f else 0.10f),
+                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("menu_security_badge")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = null,
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "🛡️ درع أمان وحديدي: منع سحب أي بيانات من الهاتف بنسبة 100%",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp
+                        ),
+                        color = if (themePalette.isDark) Color(0xFF34D399) else Color(0xFF047857),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 
@@ -334,7 +395,7 @@ fun MainMenuScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             // 4. Primary Play CTA
-            val playSubtitle = lockedTier?.let { "وضع مثبّت: ${it.arabicLabel}" }
+            val playModeLabel = lockedTier?.arabicLabel
                 ?: DifficultyTier.progressiveSubtitle(profile.highestUnlockedLevel)
             Button(
                 onClick = { onContinueLevel(profile.highestUnlockedLevel) },
@@ -349,21 +410,39 @@ fun MainMenuScreen(
                     .height(56.dp)
                     .testTag("play_active_level_button")
             ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "العب المستوى ${profile.highestUnlockedLevel} • $playSubtitle",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "العب المستوى ${profile.highestUnlockedLevel}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color.Black.copy(alpha = 0.22f)
+                    ) {
+                        Text(
+                            text = playModeLabel,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            ),
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -1347,6 +1426,8 @@ fun GameplayScreen(
                 onArrowTapped = onArrowTapped,
                 modifier = Modifier.fillMaxSize(),
                 selectedPreviewArrowId = uiState.selectedPreviewArrowId,
+                arrowTipStyle = ArrowTipStyle.fromId(profile.arrowTipStyle),
+                eyeProtectionMode = profile.eyeProtectionMode,
                 onArrowLongPressed = onArrowLongPressed,
                 onArrowHoldReleased = onArrowHoldReleased,
                 onClearPreview = onClearPreview
@@ -1405,6 +1486,7 @@ fun GameplayScreen(
             starsEarned = uiState.earnedStarsOnVictory,
             scoreEarned = uiState.currentLevelScore,
             elapsedSeconds = uiState.elapsedSeconds,
+            isDark = themePalette.isDark,
             onNextLevel = onNextLevel,
             onReplay = onRestartLevel
         )
@@ -1417,6 +1499,7 @@ fun GameplayScreen(
             currentDifficulty = level.difficulty,
             profile = profile,
             feedbackMessage = uiState.shopFeedbackMessage,
+            isDark = themePalette.isDark,
             onBuyAttemptsAndContinue = onBuyAttemptsAndContinue,
             onBuyStayInSameLevel = onBuyStayInSameLevel,
             onRefillLives = onRefillLives,

@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,11 +48,15 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.RemoveRedEye
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.Visibility
+import com.example.engine.ArrowTipStyle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -105,7 +110,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.ui.text.style.TextOverflow
+import com.example.security.SecurityAuditReport
+import com.example.security.SecurityShieldManager
 import com.example.update.GitHubAppUpdater
 import com.example.update.GitHubUpdateCheckState
 import kotlin.math.PI
@@ -169,7 +178,7 @@ fun AmazeGameplayTopBar(
                     .padding(bottom = 6.dp)
             )
 
-            // 2. Second Row: Back Button + Level/Mode Info + Spaced Shop/Theme/Settings Icons shifted down & to the side
+            // 2. Second Row: Back Button + Level/Mode Info + Spaced Shop/Theme/Settings Icons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -181,7 +190,7 @@ fun AmazeGameplayTopBar(
                     shape = CircleShape,
                     color = iconSurfaceColor,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .testTag("back_to_menu_button")
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -189,58 +198,59 @@ fun AmazeGameplayTopBar(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "رجوع",
                             tint = textColor,
-                            modifier = Modifier.size(21.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
                 }
 
-                // Center: Level Name + Difficulty Badge
+                // Center: Level Name + Compact Difficulty Badge (never clips or disappears!)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 8.dp)
+                        .padding(horizontal = 4.dp)
                 ) {
                     Text(
-                        text = if (isCustomLevel) "مستوى مخصص" else "المستوى $levelNumber",
+                        text = if (isCustomLevel) "مخصص" else "المستوى $levelNumber",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 14.sp
                         ),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
                         color = textColor
                     )
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
 
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = diffBadgeColor.copy(alpha = if (themePalette.isDark) 0.26f else 0.16f),
+                        color = diffBadgeColor.copy(alpha = if (themePalette.isDark) 0.32f else 0.16f),
                         modifier = Modifier.border(
                             width = 1.dp,
-                            color = diffBadgeColor.copy(alpha = 0.40f),
+                            color = if (themePalette.isDark) Color(0xFFFFCC80).copy(alpha = 0.65f) else diffBadgeColor.copy(alpha = 0.45f),
                             shape = RoundedCornerShape(50)
                         )
                     ) {
                         Text(
-                            text = if (isModeLocked) "🔒 ${difficulty.arabicLabel}" else difficulty.arabicLabel,
+                            text = if (isModeLocked) "🔒${difficulty.arabicLabel}" else difficulty.arabicLabel,
                             style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.sp
                             ),
                             maxLines = 1,
-                            color = if (themePalette.isDark) Color(0xFFFFCC80) else diffBadgeColor,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                            softWrap = false,
+                            color = if (themePalette.isDark) Color(0xFFFFE082) else diffBadgeColor,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
                 }
 
-                // Side Actions (Shop + Theme + Settings shifted down & to the side away from the App Title)
+                // Side Actions (Shop + Theme + Settings)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     // Points Shop Button
                     Surface(
@@ -251,22 +261,23 @@ fun AmazeGameplayTopBar(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp)
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ShoppingCart,
                                 contentDescription = "متجر النقاط",
-                                tint = Color(0xFFD9822B),
-                                modifier = Modifier.size(16.dp)
+                                tint = if (themePalette.isDark) Color(0xFFFFCA28) else Color(0xFFD9822B),
+                                modifier = Modifier.size(14.dp)
                             )
                             Text(
                                 text = "$totalScore",
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp
                                 ),
                                 maxLines = 1,
+                                softWrap = false,
                                 color = textColor
                             )
                         }
@@ -277,7 +288,7 @@ fun AmazeGameplayTopBar(
                         shape = CircleShape,
                         color = iconSurfaceColor,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .testTag("theme_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -285,7 +296,7 @@ fun AmazeGameplayTopBar(
                                 imageVector = Icons.Default.Palette,
                                 contentDescription = "تغيير المظهر",
                                 tint = textColor,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -295,7 +306,7 @@ fun AmazeGameplayTopBar(
                         shape = CircleShape,
                         color = iconSurfaceColor,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .testTag("settings_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -303,7 +314,7 @@ fun AmazeGameplayTopBar(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "الإعدادات",
                                 tint = textColor,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -383,45 +394,44 @@ fun AmazeGameplaySubBar(
                 }
             }
 
-            // Live Countdown Timer + Remaining Arrows + Combo indicator
+            // Live Countdown Timer Pill
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (isLowTime) {
+                    Color(0xFFC62828).copy(alpha = 0.18f)
+                } else {
+                    pillBgColor
+                },
+                modifier = Modifier.testTag("level_timer_badge")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = "المؤقت",
+                        tint = if (isLowTime) Color(0xFFC62828) else Color(0xFFB36A22),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text(
+                        text = formatTimerMmSs(remainingSeconds),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        ),
+                        maxLines = 1,
+                        color = if (isLowTime) Color(0xFFC62828) else textColor
+                    )
+                }
+            }
+
+            // Remaining Arrows Counter + Combo indicator Pill
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Actual Level Countdown Timer Pill
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = if (isLowTime) {
-                        Color(0xFFC62828).copy(alpha = 0.18f)
-                    } else {
-                        pillBgColor
-                    },
-                    modifier = Modifier.testTag("level_timer_badge")
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = "المؤقت",
-                            tint = if (isLowTime) Color(0xFFC62828) else Color(0xFFB36A22),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = formatTimerMmSs(remainingSeconds),
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            ),
-                            maxLines = 1,
-                            color = if (isLowTime) Color(0xFFC62828) else textColor
-                        )
-                    }
-                }
-
-                // Remaining Arrows Counter
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = pillBgColor
@@ -434,7 +444,7 @@ fun AmazeGameplaySubBar(
                         ),
                         maxLines = 1,
                         color = textColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }
 
@@ -455,42 +465,6 @@ fun AmazeGameplaySubBar(
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
                         )
                     }
-                }
-            }
-
-            // Lightbulb Hint button
-            Box(
-                contentAlignment = Alignment.TopEnd
-            ) {
-                Surface(
-                    onClick = onHintClick,
-                    shape = CircleShape,
-                    color = pillBgColor,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .testTag("top_hint_button")
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Lightbulb,
-                            contentDescription = "تلميح",
-                            tint = Color(0xFFD9822B),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = Color(0xFFC27832),
-                    modifier = Modifier.padding(end = 1.dp, top = 1.dp)
-                ) {
-                    Text(
-                        text = "$hintsBalance",
-                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 10.sp),
-                        maxLines = 1,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                    )
                 }
             }
         }
@@ -539,32 +513,55 @@ fun AmazeFloatingToastBanner(
         exit = fadeOut() + scaleOut(targetScale = 0.90f),
         modifier = modifier
     ) {
+        val isRedPathAlert = message?.contains("أحمر") == true ||
+            message?.contains("تلميح") == true ||
+            message?.contains("مسار") == true ||
+            message?.contains("✅") == true ||
+            message?.contains("⛔") == true
+
+        val bgColor = if (isRedPathAlert) Color(0xFF111827) else Color(0xFFFFFDF9).copy(alpha = 0.96f)
+        val borderColor = if (isRedPathAlert) Color(0xFFFF1744) else Color(0xFFD9822B).copy(alpha = 0.40f)
+        val textColor = if (isRedPathAlert) Color(0xFFFFFFFF) else Color(0xFF8C4A15)
+
         Surface(
             shape = RoundedCornerShape(50),
-            color = Color(0xFFFFFDF9).copy(alpha = 0.95f),
-            shadowElevation = 3.dp,
+            color = bgColor,
+            shadowElevation = 5.dp,
             modifier = Modifier
-                .padding(horizontal = 44.dp, vertical = 4.dp)
-                .widthIn(max = 232.dp)
+                .padding(horizontal = 20.dp, vertical = 4.dp)
+                .widthIn(max = 380.dp)
                 .border(
-                    width = 1.dp,
-                    color = Color(0xFFD9822B).copy(alpha = 0.28f),
+                    width = if (isRedPathAlert) 1.5.dp else 1.dp,
+                    color = borderColor,
                     shape = RoundedCornerShape(50)
                 )
                 .testTag("floating_toast_banner")
         ) {
-            Text(
-                text = message ?: "",
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = Color(0xFF8C4A15),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (isRedPathAlert) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(Color(0xFFFF1744), CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(7.dp))
+                }
+                Text(
+                    text = message ?: "",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 12.sp
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = textColor,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -584,8 +581,11 @@ fun AmazeGameplayBottomBar(
     hintCooldownSeconds: Int = 0,
     autoSolveCooldownSeconds: Int = 0
 ) {
-    val cardBg = if (themePalette.isDark) Color(0xFF1E2432) else Color(0xFFF4E8D6)
-    val contentTint = if (themePalette.isDark) Color(0xFFE8DCCB) else Color(0xFF53351A)
+    val isDark = themePalette.isDark
+    val cardBg = if (isDark) Color(0xFF20293C) else Color(0xFFF4E8D6)
+    val chipBg = if (isDark) Color(0xFF2B3750) else Color(0xFFEBDAC2)
+    val chipBorder = if (isDark) Color(0xFF47587A) else Color(0xFFD7C2A6)
+    val contentTint = if (isDark) Color(0xFFFFFFFF) else Color(0xFF3E240E)
     val isHintLocked = hintCooldownSeconds > 0
     val isPathInspectLocked = pathInspectCooldownSeconds > 0
     val isAutoSolveLocked = autoSolveCooldownSeconds > 0 && !isAutoSolving
@@ -593,14 +593,21 @@ fun AmazeGameplayBottomBar(
     Surface(
         color = cardBg,
         shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-        tonalElevation = 4.dp,
-        modifier = Modifier.fillMaxWidth()
+        tonalElevation = 6.dp,
+        shadowElevation = 6.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = if (isDark) Color(0xFF3E4E6E) else Color(0xFFE0CEB4),
+                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+            )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 6.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -608,7 +615,9 @@ fun AmazeGameplayBottomBar(
                 icon = Icons.AutoMirrored.Filled.Undo,
                 label = "تراجع",
                 enabled = canUndo,
-                tint = contentTint,
+                tint = if (canUndo) contentTint else if (isDark) Color(0xFFCFD8DC) else Color(0xFF8D745C),
+                chipBg = chipBg,
+                chipBorder = chipBorder,
                 testTag = "undo_button",
                 onClick = onUndoClick
             )
@@ -617,7 +626,13 @@ fun AmazeGameplayBottomBar(
                 icon = Icons.Default.Lightbulb,
                 label = if (isHintLocked) "🔒 ${formatTimerMmSs(hintCooldownSeconds)}" else "تلميح",
                 enabled = true,
-                tint = if (isHintLocked) contentTint.copy(alpha = 0.45f) else Color(0xFFD9822B),
+                tint = when {
+                    isHintLocked -> if (isDark) Color(0xFFFFECB3) else Color(0xFF8C5820)
+                    isDark -> Color(0xFFFFD54F)
+                    else -> Color(0xFFC86D14)
+                },
+                chipBg = chipBg,
+                chipBorder = chipBorder,
                 testTag = "bottom_hint_button",
                 onClick = onHintClick
             )
@@ -626,7 +641,13 @@ fun AmazeGameplayBottomBar(
                 icon = Icons.Default.Visibility,
                 label = if (isPathInspectLocked) "🔒 ${formatTimerMmSs(pathInspectCooldownSeconds)}" else "فحص المسار",
                 enabled = true,
-                tint = if (isPathInspectLocked) contentTint.copy(alpha = 0.45f) else contentTint,
+                tint = when {
+                    isPathInspectLocked -> if (isDark) Color(0xFFB3E5FC) else Color(0xFF6B533B)
+                    isDark -> Color(0xFF80D8FF)
+                    else -> contentTint
+                },
+                chipBg = chipBg,
+                chipBorder = chipBorder,
                 testTag = "preview_mode_button",
                 onClick = onTogglePreviewMode
             )
@@ -640,10 +661,13 @@ fun AmazeGameplayBottomBar(
                 },
                 enabled = true,
                 tint = when {
-                    isAutoSolving -> Color(0xFFE53935)
-                    isAutoSolveLocked -> contentTint.copy(alpha = 0.45f)
-                    else -> Color(0xFF7B1FA2)
+                    isAutoSolving -> if (isDark) Color(0xFFFF8A80) else Color(0xFFD32F2F)
+                    isAutoSolveLocked -> if (isDark) Color(0xFFE1BEE7) else Color(0xFF6A3B7D)
+                    isDark -> Color(0xFFEA80FC)
+                    else -> Color(0xFF6A1B9A)
                 },
+                chipBg = chipBg,
+                chipBorder = chipBorder,
                 testTag = "auto_solve_button",
                 onClick = onAutoSolveToggle
             )
@@ -653,6 +677,8 @@ fun AmazeGameplayBottomBar(
                 label = "ملاءمة",
                 enabled = true,
                 tint = contentTint,
+                chipBg = chipBg,
+                chipBorder = chipBorder,
                 testTag = "reset_zoom_button",
                 onClick = onResetZoomClick
             )
@@ -666,6 +692,8 @@ private fun BottomActionChip(
     label: String,
     enabled: Boolean,
     tint: Color,
+    chipBg: Color,
+    chipBorder: Color,
     testTag: String,
     onClick: () -> Unit
 ) {
@@ -673,26 +701,28 @@ private fun BottomActionChip(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
+            .background(chipBg)
+            .border(1.dp, chipBorder, RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 5.dp)
+            .padding(horizontal = 7.dp, vertical = 5.dp)
             .testTag(testTag)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (enabled) tint else tint.copy(alpha = 0.35f),
-            modifier = Modifier.size(22.dp)
+            tint = tint,
+            modifier = Modifier.size(21.dp)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium.copy(
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.ExtraBold
             ),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = if (enabled) tint else tint.copy(alpha = 0.35f)
+            softWrap = false,
+            color = tint
         )
     }
 }
@@ -701,6 +731,7 @@ private fun BottomActionChip(
 fun AmazeSettingsDialog(
     profile: PlayerProfileEntity,
     showRestartButton: Boolean,
+    themePalette: BoardThemePalette = BoardThemePalette.AMAZE_CLASSIC,
     updateCheckState: GitHubUpdateCheckState = GitHubUpdateCheckState(),
     onCheckGitHubUpdate: () -> Unit = {},
     onDownloadGitHubUpdate: () -> Unit = {},
@@ -710,20 +741,40 @@ fun AmazeSettingsDialog(
     onToggleMusic: (Boolean) -> Unit,
     onToggleVoice: (Boolean) -> Unit,
     onSelectThemeMode: (AppThemeMode) -> Unit = {},
+    onSelectArrowTipStyle: (ArrowTipStyle) -> Unit = {},
+    onToggleEyeProtection: (Boolean) -> Unit = {},
+    screenPrivacyProtection: Boolean = false,
+    onToggleScreenPrivacyProtection: (Boolean) -> Unit = {},
+    onOpenSecurityShieldDialog: () -> Unit = {},
     onRestartLevel: () -> Unit
 ) {
     val activeThemeMode = AppThemeMode.fromId(profile.themeMode)
+    val activeArrowTipStyle = ArrowTipStyle.fromId(profile.arrowTipStyle)
+    val isDark = themePalette.isDark || activeThemeMode == AppThemeMode.DARK
+
+    val dialogBg = if (isDark) Color(0xFF131822) else Color(0xFFFAF3E6)
+    val topBarBg = if (isDark) Color(0xFF1C2433) else Color(0xFFEDE0CA)
+    val cardBg = if (isDark) Color(0xFF222B3D) else Color(0xFFF1E4CE)
+    val subCardBg = if (isDark) Color(0xFF18202E) else Color(0xFFFAF3E6)
+    val cardBorder = if (isDark) Color(0xFF384661) else Color(0xFFD7C6B0)
+    val titleColor = if (isDark) Color(0xFFFFFFFF) else Color(0xFF2B1B0E)
+    val textColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF4E3117)
+    val subTextColor = if (isDark) Color(0xFFAEBCCF) else Color(0xFF6B4624)
+    val brandAccent = if (isDark) Color(0xFFFFB74D) else Color(0xFFB36A22)
+    val dividerColor = if (isDark) Color(0xFF384661) else Color(0xFFD7C6B0).copy(alpha = 0.5f)
+    val closeBtnBg = if (isDark) Color(0xFF2B364C) else Color(0xFFFAF3E6)
+    val closeBtnTint = if (isDark) Color(0xFFE8DCCB) else Color(0xFF53351A)
 
     // Full-screen Settings window across the entire app level, respecting system status & navigation bars
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
+            decorFitsSystemWindows = true
         )
     ) {
         Surface(
-            color = Color(0xFFFAF3E6),
+            color = dialogBg,
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("settings_dialog")
@@ -737,7 +788,7 @@ fun AmazeSettingsDialog(
             ) {
                 // Full-width Pinned Top Bar for Settings
                 Surface(
-                    color = Color(0xFFEDE0CA),
+                    color = topBarBg,
                     shadowElevation = 3.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -756,7 +807,7 @@ fun AmazeSettingsDialog(
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 20.sp
                                 ),
-                                color = Color(0xFF2B1B0E),
+                                color = titleColor,
                                 textAlign = TextAlign.Center
                             )
                             Text(
@@ -765,14 +816,14 @@ fun AmazeSettingsDialog(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp
                                 ),
-                                color = Color(0xFF8C4A15),
+                                color = brandAccent,
                                 textAlign = TextAlign.Center
                             )
                         }
                         Surface(
                             onClick = onDismiss,
                             shape = CircleShape,
-                            color = Color(0xFFFAF3E6),
+                            color = closeBtnBg,
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
                                 .size(40.dp)
@@ -782,7 +833,7 @@ fun AmazeSettingsDialog(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "إغلاق",
-                                    tint = Color(0xFF53351A),
+                                    tint = closeBtnTint,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -801,14 +852,14 @@ fun AmazeSettingsDialog(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // =========================================================================
-                    // القسم 1: مبدل الثيمات (Theme Mode) — منصف في منتصف الشاشة
+                    // القسم 1: مبدل الثيمات (Theme Mode) — منصف في منتصف الشاشة ومتوافق تماماً
                     // =========================================================================
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFFF1E4CE),
+                        color = cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFFD7C6B0), RoundedCornerShape(20.dp))
+                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
                     ) {
                         Column(
                             modifier = Modifier
@@ -821,9 +872,9 @@ fun AmazeSettingsDialog(
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 Icon(
-                                    imageVector = if (activeThemeMode == AppThemeMode.DARK) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                    imageVector = if (isDark) Icons.Default.DarkMode else Icons.Default.LightMode,
                                     contentDescription = null,
-                                    tint = Color(0xFFB36A22),
+                                    tint = brandAccent,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -833,7 +884,7 @@ fun AmazeSettingsDialog(
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 15.sp
                                     ),
-                                    color = Color(0xFF4E3117),
+                                    color = titleColor,
                                     textAlign = TextAlign.Center
                                 )
                             }
@@ -855,12 +906,12 @@ fun AmazeSettingsDialog(
                                     Surface(
                                         onClick = { onSelectThemeMode(mode) },
                                         shape = RoundedCornerShape(14.dp),
-                                        color = if (isSelected) Color(0xFFB36A22) else Color(0xFFFAF3E6),
+                                        color = if (isSelected) brandAccent else subCardBg,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .border(
                                                 width = 1.dp,
-                                                color = if (isSelected) Color(0xFFB36A22) else Color(0xFFD7C6B0),
+                                                color = if (isSelected) brandAccent else cardBorder,
                                                 shape = RoundedCornerShape(14.dp)
                                             )
                                             .testTag("theme_mode_${mode.id.lowercase()}")
@@ -889,7 +940,7 @@ fun AmazeSettingsDialog(
                                                 ),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
-                                                color = if (isSelected) Color.White else Color(0xFF4E3117),
+                                                color = if (isSelected) Color.White else textColor,
                                                 textAlign = TextAlign.Center
                                             )
                                         }
@@ -902,14 +953,245 @@ fun AmazeSettingsDialog(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // =========================================================================
-                    // القسم 2: إعدادات الصوت والاهتزاز (Audio & Haptics) — مجموعة منسقة ومنصفة
+                    // القسم 2: شكل ورأس السهم (Arrow Tip Style Customization)
                     // =========================================================================
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFFF1E4CE),
+                        color = cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFFD7C6B0), RoundedCornerShape(20.dp))
+                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Navigation,
+                                    contentDescription = null,
+                                    tint = brandAccent,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "شكل ورأس السهم في المتاهة",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = titleColor,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            Text(
+                                text = "اختر شكل رأس السهم المفضل لديك لتحسين دقة وسرعة الرؤية أثناء اللعب",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
+                                color = subTextColor,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                            )
+
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                for (style in ArrowTipStyle.entries) {
+                                    val isSelected = style == activeArrowTipStyle
+                                    Surface(
+                                        onClick = { onSelectArrowTipStyle(style) },
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (isSelected) brandAccent.copy(alpha = if (isDark) 0.32f else 0.18f) else subCardBg,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color = if (isSelected) brandAccent else cardBorder,
+                                                shape = RoundedCornerShape(14.dp)
+                                            )
+                                            .testTag("arrow_style_${style.name.lowercase()}")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = if (isDark) Color(0xFF2B364C) else Color(0xFFE9DCBA),
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Navigation,
+                                                            contentDescription = null,
+                                                            tint = if (isSelected) brandAccent else textColor,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                Column {
+                                                    Text(
+                                                        text = style.arabicName,
+                                                        style = MaterialTheme.typography.titleMedium.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 14.sp
+                                                        ),
+                                                        color = titleColor
+                                                    )
+                                                    Text(
+                                                        text = style.descriptionAr,
+                                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
+                                                        color = subTextColor
+                                                    )
+                                                }
+                                            }
+
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = "محدد",
+                                                    tint = brandAccent,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // =========================================================================
+                    // القسم 3: وضع حماية البصر وقاعدة 20-20-20 (Eye Comfort Protection)
+                    // =========================================================================
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = cardBg,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.RemoveRedEye,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2E7D32),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "وضع حماية البصر (Eye Comfort)",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = titleColor,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = "فلتر الضوء المريح للعينين",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        ),
+                                        color = titleColor
+                                    )
+                                    Text(
+                                        text = "تدرجات لونية هادئة تقلل من التوهج وإجهاد البصر أثناء التركيز وحل المتاهات",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
+                                        color = subTextColor
+                                    )
+                                }
+
+                                Switch(
+                                    checked = profile.eyeProtectionMode,
+                                    onCheckedChange = onToggleEyeProtection,
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = Color(0xFF2E7D32),
+                                        uncheckedThumbColor = Color.White,
+                                        uncheckedTrackColor = cardBorder
+                                    ),
+                                    modifier = Modifier.testTag("toggle_eye_protection")
+                                )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = subCardBg,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Visibility,
+                                        contentDescription = null,
+                                        tint = Color(0xFF2E7D32),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "تذكير قاعدة 20-20-20 مفعل تلقائياً: إذا استمر تركيزك لأكثر من 20 دقيقة، سينبهك التطبيق للنظر بعيداً 20 ثانية لإراحة عضلات العينين.",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
+                                        color = textColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // =========================================================================
+                    // القسم 4: إعدادات الصوت والاهتزاز (Audio & Haptics) — مجموعة منسقة ومنصفة
+                    // =========================================================================
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = cardBg,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
                     ) {
                         Column(
                             modifier = Modifier
@@ -923,7 +1205,7 @@ fun AmazeSettingsDialog(
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 15.sp
                                 ),
-                                color = Color(0xFF4E3117),
+                                color = titleColor,
                                 textAlign = TextAlign.Center
                             )
 
@@ -934,31 +1216,39 @@ fun AmazeSettingsDialog(
                                 label = "المؤثرات الصوتية",
                                 checked = profile.soundEnabled,
                                 onCheckedChange = onToggleSound,
-                                testTag = "toggle_sound"
+                                testTag = "toggle_sound",
+                                labelColor = textColor,
+                                iconTint = brandAccent
                             )
-                            HorizontalDivider(color = Color(0xFFD7C6B0).copy(alpha = 0.5f))
+                            HorizontalDivider(color = dividerColor)
                             SettingsToggleRow(
                                 icon = Icons.Default.Vibration,
                                 label = "الاهتزاز التفاعلي",
                                 checked = profile.vibrationEnabled,
                                 onCheckedChange = onToggleVibration,
-                                testTag = "toggle_vibration"
+                                testTag = "toggle_vibration",
+                                labelColor = textColor,
+                                iconTint = brandAccent
                             )
-                            HorizontalDivider(color = Color(0xFFD7C6B0).copy(alpha = 0.5f))
+                            HorizontalDivider(color = dividerColor)
                             SettingsToggleRow(
                                 icon = Icons.Default.MusicNote,
                                 label = "الموسيقى الهادئة",
                                 checked = profile.musicEnabled,
                                 onCheckedChange = onToggleMusic,
-                                testTag = "toggle_music"
+                                testTag = "toggle_music",
+                                labelColor = textColor,
+                                iconTint = brandAccent
                             )
-                            HorizontalDivider(color = Color(0xFFD7C6B0).copy(alpha = 0.5f))
+                            HorizontalDivider(color = dividerColor)
                             SettingsToggleRow(
                                 icon = Icons.Default.RecordVoiceOver,
                                 label = "عبارات التشجيع",
                                 checked = profile.voiceEnabled,
                                 onCheckedChange = onToggleVoice,
-                                testTag = "toggle_voice"
+                                testTag = "toggle_voice",
+                                labelColor = textColor,
+                                iconTint = brandAccent
                             )
                         }
                     }
@@ -966,14 +1256,167 @@ fun AmazeSettingsDialog(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // =========================================================================
-                    // القسم 3: نظام التحديث والتنزيل بالميجات (MB) داخل التطبيق عبر GitHub
+                    // القسم 5: درع الأمان والخصوصية الحديدي (Zero Data Privacy & Security Shield)
                     // =========================================================================
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFFF1E4CE),
+                        color = cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFFD7C6B0), RoundedCornerShape(20.dp))
+                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                            .testTag("security_shield_card")
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VerifiedUser,
+                                    contentDescription = null,
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "درع الأمان والخصوصية الحديدي",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = titleColor,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF10B981).copy(alpha = if (isDark) 0.16f else 0.12f),
+                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shield,
+                                        contentDescription = null,
+                                        tint = Color(0xFF10B981),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "الدرع نشط • حماية مطلقة 100% ضد سحب أي بيانات من هاتفك",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.5.sp
+                                        ),
+                                        color = if (isDark) Color(0xFF34D399) else Color(0xFF047857),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "تطبيق Maze Arrows مصمم وفق أعلى معايير الأمان العالمية بمبدأ (Zero-Data Extraction): معالجة وحسابات محلية 100% على معالج جهازك بدون إرسال أي بايت لخوادم خارجية، وانعدام تام للصلاحيات الحساسة (الصور، الأسماء، الموقع، الميكروفون، الكاميرا)، وخالٍ نهائياً من أي أدوات تتبع أو إعلانات.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.5.sp,
+                                    lineHeight = 17.sp
+                                ),
+                                color = subTextColor,
+                                textAlign = TextAlign.Center
+                            )
+
+                            // Privacy Screen Capture Toggle (FLAG_SECURE)
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = subCardBg,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "حظر لقطات الشاشة والتسجيل الخفي",
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.5.sp
+                                            ),
+                                            color = textColor
+                                        )
+                                        Text(
+                                            text = "حماية شاشة اللعبة من التطبيقات المتلصصة في الخلفية (FLAG_SECURE)",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontSize = 10.5.sp
+                                            ),
+                                            color = subTextColor
+                                        )
+                                    }
+                                    Switch(
+                                        checked = screenPrivacyProtection,
+                                        onCheckedChange = onToggleScreenPrivacyProtection,
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = Color(0xFF10B981)
+                                        ),
+                                        modifier = Modifier.testTag("toggle_screen_privacy")
+                                    )
+                                }
+                            }
+
+                            // Full Audit Details Button
+                            Button(
+                                onClick = onOpenSecurityShieldDialog,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isDark) Color(0xFF064E3B) else Color(0xFF059669),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("open_security_audit_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "تقرير فحص وتدقيق الأمان الشامل (Audit Report)",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.5.sp
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // =========================================================================
+                    // القسم 6: نظام التحديث والتنزيل بالميجات (MB) داخل التطبيق عبر GitHub
+                    // =========================================================================
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = cardBg,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
                             .testTag("github_update_card")
                     ) {
                         Column(
@@ -995,12 +1438,12 @@ fun AmazeSettingsDialog(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "تحديث التطبيق داخل البرنامج (GitHub MB)",
+                                    text = "تحديث وتنزيل إصدارات التطبيق",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 15.sp
                                     ),
-                                    color = Color(0xFF4E3117),
+                                    color = titleColor,
                                     textAlign = TextAlign.Center
                                 )
                             }
@@ -1013,10 +1456,10 @@ fun AmazeSettingsDialog(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFFAF3E6),
+                                    color = subCardBg,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .border(1.dp, Color(0xFFD7C6B0), RoundedCornerShape(12.dp))
+                                        .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
                                 ) {
                                     Column(
                                         modifier = Modifier.padding(vertical = 8.dp, horizontal = 6.dp),
@@ -1025,7 +1468,7 @@ fun AmazeSettingsDialog(
                                         Text(
                                             text = "الإصدار القديم/الحالي المثبّت",
                                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 10.sp),
-                                            color = Color(0xFF6B4624),
+                                            color = subTextColor,
                                             textAlign = TextAlign.Center
                                         )
                                         Text(
@@ -1034,7 +1477,7 @@ fun AmazeSettingsDialog(
                                                 fontWeight = FontWeight.ExtraBold,
                                                 fontSize = 15.sp
                                             ),
-                                            color = Color(0xFF2B1B0E),
+                                            color = titleColor,
                                             textAlign = TextAlign.Center
                                         )
                                     }
@@ -1042,12 +1485,12 @@ fun AmazeSettingsDialog(
 
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFFAF3E6),
+                                    color = subCardBg,
                                     modifier = Modifier
                                         .weight(1f)
                                         .border(
                                             width = 1.dp,
-                                            color = if (updateCheckState.isUpdateAvailable) Color(0xFF2E7D32) else Color(0xFFD7C6B0),
+                                            color = if (updateCheckState.isUpdateAvailable) Color(0xFF2E7D32) else cardBorder,
                                             shape = RoundedCornerShape(12.dp)
                                         )
                                 ) {
@@ -1056,16 +1499,20 @@ fun AmazeSettingsDialog(
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Text(
-                                            text = "أحدث إصدار على GitHub",
+                                            text = "أحدث إصدار متاح",
                                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 10.sp),
-                                            color = Color(0xFF6B4624),
+                                            color = subTextColor,
                                             textAlign = TextAlign.Center
                                         )
                                         Text(
-                                            text = "v${updateCheckState.remoteVersionName ?: updateCheckState.installedVersionName}",
+                                            text = if (updateCheckState.remoteVersionName != null) {
+                                                "v${updateCheckState.remoteVersionName}"
+                                            } else {
+                                                "لا يوجد أحدث"
+                                            },
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 15.sp
+                                                fontSize = 14.sp
                                             ),
                                             color = if (updateCheckState.isUpdateAvailable) Color(0xFF2E7D32) else Color(0xFF1565C0),
                                             textAlign = TextAlign.Center
@@ -1078,11 +1525,13 @@ fun AmazeSettingsDialog(
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = if (updateCheckState.isUpdateAvailable) {
-                                    Color(0xFF2E7D32).copy(alpha = 0.12f)
+                                    Color(0xFF2E7D32).copy(alpha = 0.16f)
                                 } else {
-                                    Color(0xFFFAF3E6)
+                                    subCardBg
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -1097,12 +1546,12 @@ fun AmazeSettingsDialog(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp
                                         ),
-                                        color = if (updateCheckState.isUpdateAvailable) Color(0xFF1B5E20) else Color(0xFF53351A),
+                                        color = if (updateCheckState.isUpdateAvailable) Color(0xFF2E7D32) else titleColor,
                                         textAlign = TextAlign.Center
                                     )
                                     if (updateCheckState.isDownloading) {
                                         Text(
-                                            text = "التنزيل داخل التطبيق: ${GitHubAppUpdater.formatMb(updateCheckState.downloadedMegabytes)} من ${GitHubAppUpdater.formatMb(updateCheckState.totalMegabytes.coerceAtLeast(16.8f))} (${updateCheckState.downloadProgressPercent}%)",
+                                            text = "التنزيل من GitHub: ${GitHubAppUpdater.formatMb(updateCheckState.downloadedMegabytes)} من ${GitHubAppUpdater.formatMb(updateCheckState.totalMegabytes.coerceAtLeast(1f))} (${updateCheckState.downloadProgressPercent}%)",
                                             style = MaterialTheme.typography.labelLarge.copy(
                                                 fontWeight = FontWeight.ExtraBold,
                                                 fontSize = 12.sp
@@ -1118,7 +1567,7 @@ fun AmazeSettingsDialog(
                                 LinearProgressIndicator(
                                     progress = { (updateCheckState.downloadProgressPercent / 100f).coerceIn(0f, 1f) },
                                     color = Color(0xFF1565C0),
-                                    trackColor = Color(0xFFD7C6B0),
+                                    trackColor = cardBorder,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(8.dp)
@@ -1143,27 +1592,32 @@ fun AmazeSettingsDialog(
                                     Icon(
                                         imageVector = Icons.Default.Refresh,
                                         contentDescription = null,
-                                        tint = Color(0xFF4E3117),
-                                        modifier = Modifier.size(17.dp)
+                                        tint = brandAccent,
+                                        modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "مقارنة الإصدار",
+                                        text = "فحص الإصدار",
                                         style = MaterialTheme.typography.labelLarge.copy(
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
+                                            fontSize = 11.sp
                                         ),
                                         maxLines = 1,
-                                        color = Color(0xFF4E3117)
+                                        softWrap = false,
+                                        color = titleColor
                                     )
                                 }
 
                                 Button(
                                     onClick = onDownloadGitHubUpdate,
-                                    enabled = !updateCheckState.isDownloading,
+                                    enabled = !updateCheckState.isDownloading && !updateCheckState.isChecking,
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF1565C0),
+                                        containerColor = if (updateCheckState.isUpdateAvailable || !updateCheckState.readyApkFilePath.isNullOrBlank()) {
+                                            Color(0xFF2E7D32)
+                                        } else {
+                                            Color(0xFF1565C0)
+                                        },
                                         contentColor = Color.White
                                     ),
                                     modifier = Modifier
@@ -1174,44 +1628,44 @@ fun AmazeSettingsDialog(
                                     Icon(
                                         imageVector = Icons.Default.CloudDownload,
                                         contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(17.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = if (updateCheckState.isDownloading) {
-                                            "تنزيل ${GitHubAppUpdater.formatMb(updateCheckState.downloadedMegabytes)} (${updateCheckState.downloadProgressPercent}%)"
-                                        } else {
-                                            "تنزيل وتثبيت داخل التطبيق"
+                                        text = when {
+                                            updateCheckState.isDownloading ->
+                                                "تنزيل ${updateCheckState.downloadProgressPercent}%"
+                                            !updateCheckState.readyApkFilePath.isNullOrBlank() ->
+                                                "تثبيت التحديث الآن"
+                                            updateCheckState.isUpdateAvailable ->
+                                                "تنزيل وتثبيت v${updateCheckState.remoteVersionName}"
+                                            else ->
+                                                "تحديث وتثبيت"
                                         },
                                         style = MaterialTheme.typography.labelLarge.copy(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 11.sp
                                         ),
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }
 
-                            Text(
-                                text = "الرابط الرسمي: ${GitHubAppUpdater.GITHUB_REPO_URL}\nالتنزيل بالميجات (MB) داخل التطبيق والتثبيت عبر صلاحيات النظام الآمنة",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 10.sp),
-                                color = Color(0xFF6B4624),
-                                textAlign = TextAlign.Center
-                            )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // =========================================================================
-                    // القسم 4: بيانات المطور وعن التطبيق (منصف في المنتصف)
+                    // القسم 7: بيانات المطور وعن التطبيق (منصف في المنتصف)
                     // =========================================================================
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFFF1E4CE),
+                        color = cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFFD7C6B0), RoundedCornerShape(20.dp))
+                            .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
                             .testTag("developer_info_card")
                     ) {
                         Column(
@@ -1228,7 +1682,7 @@ fun AmazeSettingsDialog(
                                 Icon(
                                     imageVector = Icons.Default.Code,
                                     contentDescription = null,
-                                    tint = Color(0xFF8C4A15),
+                                    tint = brandAccent,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -1238,17 +1692,17 @@ fun AmazeSettingsDialog(
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 15.sp
                                     ),
-                                    color = Color(0xFF4E3117),
+                                    color = titleColor,
                                     textAlign = TextAlign.Center
                                 )
                             }
 
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = Color(0xFFFAF3E6),
+                                color = subCardBg,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .border(1.dp, Color(0xFFD9822B).copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                                    .border(1.dp, brandAccent.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -1259,7 +1713,7 @@ fun AmazeSettingsDialog(
                                     Text(
                                         text = "اسم المطور",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
-                                        color = Color(0xFF6B4624),
+                                        color = subTextColor,
                                         textAlign = TextAlign.Center
                                     )
                                     Text(
@@ -1268,7 +1722,7 @@ fun AmazeSettingsDialog(
                                             fontWeight = FontWeight.ExtraBold,
                                             fontSize = 17.sp
                                         ),
-                                        color = Color(0xFF2B1B0E),
+                                        color = titleColor,
                                         textAlign = TextAlign.Center
                                     )
                                 }
@@ -1286,7 +1740,7 @@ fun AmazeSettingsDialog(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Maze Arrows • الإصدار 1.0 • آمن ومعتمد لجميع الهواتف",
+                                    text = "Maze Arrows • الإصدار ${updateCheckState.installedVersionName} • آمن ومعتمد لجميع الهواتف",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 11.sp
@@ -1307,7 +1761,7 @@ fun AmazeSettingsDialog(
                             },
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFB36A22),
+                                containerColor = brandAccent,
                                 contentColor = Color.White
                             ),
                             modifier = Modifier
@@ -1332,7 +1786,140 @@ fun AmazeSettingsDialog(
                     }
 
                     // Extra bottom spacing so content never touches or overlaps mobile navigation bars
-                    Spacer(modifier = Modifier.height(28.dp))
+                    Spacer(modifier = Modifier.height(72.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AmazeEyeCareReminderDialog(
+    themePalette: BoardThemePalette,
+    eyeProtectionActive: Boolean,
+    onEnableEyeProtection: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isDark = themePalette.isDark
+    val cardBg = if (isDark) Color(0xFF1C2433) else Color(0xFFFAF3E6)
+    val titleColor = if (isDark) Color.White else Color(0xFF2B1B0E)
+    val textColor = if (isDark) Color(0xFFE8DCCB) else Color(0xFF4E3117)
+    val cardBorder = if (isDark) Color(0xFF384661) else Color(0xFFD7C6B0)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = cardBg),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.5.dp, cardBorder, RoundedCornerShape(26.dp))
+                .testTag("eye_care_reminder_dialog")
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFF2E7D32).copy(alpha = 0.18f),
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.RemoveRedEye,
+                            contentDescription = "حماية البصر",
+                            tint = Color(0xFF2E7D32),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "👀 تذكير راحة وحماية البصر",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp
+                    ),
+                    color = titleColor,
+                    textAlign = TextAlign.Center
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isDark) Color(0xFF242F42) else Color(0xFFF1E4CE),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "لقد ركّزت في حل المتاهات لأكثر من 20 دقيقة متواصلة!",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            ),
+                            color = titleColor,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "لحماية عينيك وتقليل الإجهاد وفق قاعدة (20-20-20)، انظر إلى شيء بعيد لمدة 20 ثانية لتريح عضلات العينين.",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
+                            color = textColor,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                if (!eyeProtectionActive) {
+                    Button(
+                        onClick = onEnableEyeProtection,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2E7D32),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .testTag("enable_eye_protection_dialog_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "تفعيل وضع حماية البصر فوراً",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        )
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .testTag("dismiss_eye_care_button")
+                ) {
+                    Text(
+                        text = "أخذت استراحة قصيرة • متابعة اللعب",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        ),
+                        color = titleColor
+                    )
                 }
             }
         }
@@ -1343,6 +1930,7 @@ fun AmazeSettingsDialog(
 fun AmazePointsShopDialog(
     profile: PlayerProfileEntity,
     feedbackMessage: String?,
+    isDark: Boolean = false,
     onPurchaseExtraTime: () -> Unit,
     onPurchaseUnlockTools: () -> Unit = {},
     onPurchaseStayInMode: (DifficultyTier) -> Unit,
@@ -1360,10 +1948,18 @@ fun AmazePointsShopDialog(
         mutableStateOf(currentlyLockedTier ?: DifficultyTier.EASY)
     }
 
+    val dialogBg = if (isDark) Color(0xFF181F2C) else Color(0xFFFAF3E6)
+    val dialogBorder = if (isDark) Color(0xFF2C394F) else Color(0xFFE2D4BF)
+    val titleColor = if (isDark) Color(0xFFFFB74D) else Color(0xFF2B1B0E)
+    val textColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A)
+    val bannerBg = if (isDark) Color(0xFF232D3F) else Color(0xFFEDE0CA)
+    val bannerTitle = if (isDark) Color(0xFFFFCC80) else Color(0xFF8C4A15)
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFAF3E6)),
+            colors = CardDefaults.cardColors(containerColor = dialogBg),
+            border = BorderStroke(1.dp, dialogBorder),
             elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1384,7 +1980,7 @@ fun AmazePointsShopDialog(
                             fontWeight = FontWeight.Bold,
                             fontSize = 19.sp
                         ),
-                        color = Color(0xFF2B1B0E),
+                        color = titleColor,
                         modifier = Modifier.align(Alignment.Center)
                     )
                     IconButton(
@@ -1397,7 +1993,7 @@ fun AmazePointsShopDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "إغلاق",
-                            tint = Color(0xFF53351A)
+                            tint = textColor
                         )
                     }
                 }
@@ -1407,7 +2003,8 @@ fun AmazePointsShopDialog(
                 // Balance + Rate Limit Status Banner
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFEDE0CA),
+                    color = bannerBg,
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFDCC8AE)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -1423,7 +2020,7 @@ fun AmazePointsShopDialog(
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 16.sp
                             ),
-                            color = Color(0xFF8C4A15)
+                            color = bannerTitle
                         )
                         Text(
                             text = "عمليات الشراء المتاحة في الساعة: $remainingPurchasesInHour / ${GameRepository.MAX_PURCHASES_PER_HOUR}  •  مستوى التصاعد: #${profile.totalPurchasesCount + 1}",
@@ -1431,7 +2028,7 @@ fun AmazePointsShopDialog(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp
                             ),
-                            color = Color(0xFF53351A),
+                            color = textColor,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -1728,7 +2325,9 @@ private fun SettingsToggleRow(
     label: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    testTag: String
+    testTag: String,
+    labelColor: Color = Color(0xFF4E3117),
+    iconTint: Color = Color(0xFFB36A22)
 ) {
     Row(
         modifier = Modifier
@@ -1744,7 +2343,7 @@ private fun SettingsToggleRow(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = Color(0xFFB36A22),
+                tint = iconTint,
                 modifier = Modifier.size(22.dp)
             )
             Text(
@@ -1753,7 +2352,7 @@ private fun SettingsToggleRow(
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 ),
-                color = Color(0xFF4E3117)
+                color = labelColor
             )
         }
 
@@ -1762,9 +2361,9 @@ private fun SettingsToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFFC27832),
+                checkedTrackColor = iconTint,
                 uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFFD7C6B0)
+                uncheckedTrackColor = if (labelColor == Color(0xFF4E3117)) Color(0xFFD7C6B0) else Color(0xFF475569)
             ),
             modifier = Modifier.testTag(testTag)
         )
@@ -1774,13 +2373,21 @@ private fun SettingsToggleRow(
 @Composable
 fun AmazeThemeDialog(
     selectedThemeId: String,
+    isDark: Boolean = false,
     onSelectTheme: (BoardThemePalette) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val dialogBg = if (isDark) Color(0xFF181F2C) else Color(0xFFFAF3E6)
+    val dialogBorder = if (isDark) Color(0xFF2C394F) else Color(0xFFE2D4BF)
+    val titleColor = if (isDark) Color(0xFFFFB74D) else Color(0xFF4E3117)
+    val subTextColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF6B4624)
+    val optionBg = if (isDark) Color(0xFF232D3F) else Color(0xFFFFFBF4)
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFAF3E6)),
+            colors = CardDefaults.cardColors(containerColor = dialogBg),
+            border = BorderStroke(1.dp, dialogBorder),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -1790,9 +2397,23 @@ fun AmazeThemeDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "مظهر اللوحة",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color(0xFF4E3117),
+                    text = "ألوان الأسهم والشبكة",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    ),
+                    color = titleColor,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+
+                Text(
+                    text = "خصص نسق ألوان الأسهم ونقاط الشبكة على رقعة اللعب بحرية دون التأثير على ثيم التطبيق المختار في الإعدادات:",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp
+                    ),
+                    color = subTextColor,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
 
@@ -1802,17 +2423,17 @@ fun AmazeThemeDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(palette.boardBackgroundHex))
+                            .background(optionBg)
                             .border(
-                                width = if (isSelected) 2.5.dp else 1.dp,
-                                color = if (isSelected) Color(0xFFC27832) else Color(0xFFD7C6B0),
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) Color(0xFFD9822B) else if (isDark) Color(0xFF334155) else Color(0xFFD7C6B0),
                                 shape = RoundedCornerShape(14.dp)
                             )
                             .clickable {
                                 onSelectTheme(palette)
                                 onDismiss()
                             }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -1832,24 +2453,32 @@ fun AmazeThemeDialog(
                                     .clip(CircleShape)
                                     .background(Color(palette.highlightArrowHex))
                             )
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(palette.dotColorHex))
+                            )
                         }
 
                         Text(
                             text = palette.arabicName,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
+                                fontSize = 13.5.sp
                             ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            color = Color(palette.primaryArrowHex)
+                            color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF2B1B0E),
+                            modifier = Modifier.weight(1f, fill = false).padding(horizontal = 8.dp)
                         )
 
                         if (isSelected) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "محدد",
-                                tint = Color(0xFFC27832)
+                                tint = Color(0xFFD9822B),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -1867,9 +2496,18 @@ fun AmazeVictoryDialog(
     starsEarned: Int,
     scoreEarned: Int,
     elapsedSeconds: Int,
+    isDark: Boolean = false,
     onNextLevel: () -> Unit,
     onReplay: () -> Unit
 ) {
+    val dialogBg = if (isDark) Color(0xFF181F2C) else Color(0xFFFAF3E6)
+    val dialogBorder = if (isDark) Color(0xFF2C394F) else Color(0xFFE2D4BF)
+    val titleColor = if (isDark) Color(0xFFFFB74D) else Color(0xFF4E3117)
+    val textColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A)
+    val pillBg = if (isDark) Color(0xFF232D3F) else Color(0xFFEDE0CA)
+    val pillTextColor = if (isDark) Color(0xFFFFCC80) else Color(0xFF6B421B)
+    val replayBtnColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A)
+
     var triggerCelebration by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         triggerCelebration = true
@@ -1903,7 +2541,8 @@ fun AmazeVictoryDialog(
     Dialog(onDismissRequest = {}) {
         Card(
             shape = RoundedCornerShape(26.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFAF3E6)),
+            colors = CardDefaults.cardColors(containerColor = dialogBg),
+            border = BorderStroke(1.dp, dialogBorder),
             elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1933,7 +2572,7 @@ fun AmazeVictoryDialog(
                         Text(
                             text = "انتهى عرض الحل التلقائي",
                             style = MaterialTheme.typography.headlineMedium.copy(fontSize = 20.sp),
-                            color = Color(0xFF7B1FA2),
+                            color = Color(0xFF9C27B0),
                             textAlign = TextAlign.Center
                         )
 
@@ -1942,7 +2581,7 @@ fun AmazeVictoryDialog(
                         Text(
                             text = "تم عرض طريقة الحل للتعلّم فقط. لا يمكن تجاوز المستوى أو فتح المستوى التالي إلا بعد حلّه بنفسك!",
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                            color = Color(0xFF53351A),
+                            color = textColor,
                             textAlign = TextAlign.Center
                         )
 
@@ -1978,7 +2617,7 @@ fun AmazeVictoryDialog(
                                 fontSize = 21.sp,
                                 fontWeight = FontWeight.ExtraBold
                             ),
-                            color = Color(0xFF4E3117),
+                            color = titleColor,
                             textAlign = TextAlign.Center
                         )
 
@@ -2002,7 +2641,7 @@ fun AmazeVictoryDialog(
                                 Icon(
                                     imageVector = Icons.Default.Star,
                                     contentDescription = null,
-                                    tint = if (isEarned) Color(0xFFF3A833) else Color(0xFFD7C6B0),
+                                    tint = if (isEarned) Color(0xFFF3A833) else if (isDark) Color(0xFF475569) else Color(0xFFD7C6B0),
                                     modifier = Modifier
                                         .size(44.dp)
                                         .scale(combinedScale)
@@ -2014,7 +2653,8 @@ fun AmazeVictoryDialog(
 
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = Color(0xFFEDE0CA)
+                            color = pillBg,
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFDCC8AE))
                         ) {
                             Text(
                                 text = "النقاط المكتسبة: +$scoreEarned ⭐  •  الوقت: ${elapsedSeconds}ث",
@@ -2022,7 +2662,7 @@ fun AmazeVictoryDialog(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = Color(0xFF6B421B),
+                                color = pillTextColor,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                             )
                         }
@@ -2052,13 +2692,14 @@ fun AmazeVictoryDialog(
                         OutlinedButton(
                             onClick = onReplay,
                             shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF475569) else Color(0xFFD7C6B0)),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(46.dp)
                         ) {
                             Text(
                                 text = "إعادة اللعب",
-                                color = Color(0xFF53351A),
+                                color = replayBtnColor,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -2127,6 +2768,7 @@ fun AmazeGameOverDialog(
     profile: PlayerProfileEntity = PlayerProfileEntity(),
     feedbackMessage: String? = null,
     isTimeOut: Boolean = false,
+    isDark: Boolean = false,
     onBuyAttemptsAndContinue: () -> Unit = {},
     onBuyStayInSameLevel: () -> Unit = {},
     onRefillLives: () -> Unit,
@@ -2135,13 +2777,24 @@ fun AmazeGameOverDialog(
     val extraAttemptsCost = GameRepository.computeExtraAttemptsCost(profile.totalPurchasesCount)
     val stayInSameLevelCost = GameRepository.computeStayInModeCost(profile.totalPurchasesCount)
 
+    val dialogBg = if (isDark) Color(0xFF181F2C) else Color(0xFFFAF3E6)
+    val dialogBorder = if (isDark) Color(0xFF2C394F) else Color(0xFFE2D4BF)
+    val titleColor = if (isDark) Color(0xFFFF6B6B) else Color(0xFFC62828)
+    val textColor = if (isDark) Color(0xFFE2DCD2) else Color(0xFF53351A)
+    val pillBg = if (isDark) Color(0xFF232D3F) else Color(0xFFEDE0CA)
+    val pillTextColor = if (isDark) Color(0xFFFFB74D) else Color(0xFF8C4A15)
+    val dividerColor = if (isDark) Color(0xFF2C394F) else Color(0xFFD7C6B0)
+    val freeButtonBorder = if (isDark) Color(0xFFD9822B) else Color(0xFFB36A22)
+    val freeButtonText = if (isDark) Color(0xFFFFB74D) else Color(0xFF8C4A15)
+
     Dialog(
         onDismissRequest = {},
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Card(
             shape = RoundedCornerShape(26.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFAF3E6)),
+            colors = CardDefaults.cardColors(containerColor = dialogBg),
+            border = BorderStroke(1.dp, dialogBorder),
             elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -2153,54 +2806,55 @@ fun AmazeGameOverDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
+                    .padding(22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = if (isTimeOut) "انتهى وقت المستوى $levelNumber! ⏱" else "انتهت المحاولات في المستوى $levelNumber! 💧",
+                    text = if (isTimeOut) "انتهى الوقت! ⏱" else "نفدت المحاولات! 💧",
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 19.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold
                     ),
-                    color = Color(0xFFC62828),
+                    color = titleColor,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "هل تريد شراء محاولات إضافية للمتابعة، أو شراء البقاء في نفس المستوى والوضع (${currentDifficulty.arabicLabel}) دون تغيير الصعوبة؟",
+                    text = "تابع تقدمك بالنقاط أو ابدأ محاولة جديدة:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     ),
-                    color = Color(0xFF53351A),
+                    color = textColor,
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Current Points Balance Pill
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = Color(0xFFEDE0CA)
+                    color = pillBg,
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFDCC8AE))
                 ) {
                     Text(
-                        text = "رصيد النقاط الحالي: ${profile.totalScore} نقطة ⭐",
+                        text = "رصيدك الحالي: ${profile.totalScore} نقطة ⭐",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp
+                            fontSize = 12.5.sp
                         ),
-                        color = Color(0xFF8C4A15),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        color = pillTextColor,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                     )
                 }
 
                 if (feedbackMessage != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFFFF8E7),
+                        color = if (isDark) Color(0xFF2A241C) else Color(0xFFFFF8E7),
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(1.dp, Color(0xFFD9822B), RoundedCornerShape(12.dp))
@@ -2209,9 +2863,9 @@ fun AmazeGameOverDialog(
                             text = feedbackMessage,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
+                                fontSize = 11.5.sp
                             ),
-                            color = Color(0xFF7A3E0A),
+                            color = if (isDark) Color(0xFFFFCC80) else Color(0xFF7A3E0A),
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(8.dp)
                         )
@@ -2220,94 +2874,366 @@ fun AmazeGameOverDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Option 1: Buy +5 Attempts and Continue right where the player left off
+                // Option 1: Buy +5 Attempts (Warm Amber/Bronze - High Contrast & Harmonious)
                 Button(
                     onClick = onBuyAttemptsAndContinue,
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2E7D32),
+                        containerColor = Color(0xFFD9822B),
                         contentColor = Color.White
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
                         .testTag("buy_attempts_continue_button")
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "شراء 5 محاولات والمتابعة فوراً ($extraAttemptsCost نقطة)",
+                        text = "متابعة اللعب (+5 محاولات) • $extraAttemptsCost ⭐",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 13.5.sp
                         ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Option 2: Buy Stay in the Same Level & Mode without difficulty escalation
+                // Option 2: Buy Stay in the Same Level & Mode (Refined Slate / Warm Navy)
                 Button(
                     onClick = onBuyStayInSameLevel,
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF7B1FA2),
+                        containerColor = if (isDark) Color(0xFF2C394F) else Color(0xFF5D4037),
                         contentColor = Color.White
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
                         .testTag("buy_stay_same_level_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "شراء البقاء في نفس المستوى والوضع دون تغيير ($stayInSameLevelCost نقطة)",
+                        text = "تثبيت وضع (${currentDifficulty.arabicLabel}) • $stayInSameLevelCost ⭐",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
+                            fontSize = 13.sp
                         ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
-                HorizontalDivider(color = Color(0xFFD7C6B0))
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = dividerColor)
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Option 3: Free fallback — reopen same level in harder mode with 5 attempts
+                // Option 3: Free fallback — clean friendly retry
                 OutlinedButton(
                     onClick = onRefillLives,
                     shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.2.dp, if (isDark) Color(0xFF475569) else Color(0xFFC7B59F)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A)
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
                         .testTag("restart_from_scratch_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
-                        tint = Color(0xFFB36A22),
-                        modifier = Modifier.size(18.dp)
+                        tint = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A),
+                        modifier = Modifier.size(17.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "فتح نفس المستوى بوضع أصعب مجاناً (5 محاولات)",
+                        text = "محاولة جديدة مجاناً (5 محاولات)",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
+                            fontSize = 13.sp
                         ),
-                        color = Color(0xFF53351A),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
             }
         }
     }
 }
+
+@Composable
+fun AmazeSecurityShieldDialog(
+    report: SecurityAuditReport?,
+    isDark: Boolean,
+    onRefreshAudit: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val dialogBg = if (isDark) Color(0xFF131822) else Color(0xFFFAF3E6)
+    val cardBg = if (isDark) Color(0xFF1E2638) else Color(0xFFFFFDF9)
+    val subCardBg = if (isDark) Color(0xFF161E2D) else Color(0xFFF6EDE0)
+    val cardBorder = if (isDark) Color(0xFF2E3D59) else Color(0xFFE0D0BB)
+    val titleColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF2B1B0E)
+    val textColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF4E3117)
+    val subTextColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF785434)
+    val emeraldGreen = Color(0xFF10B981)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = true
+        )
+    ) {
+        Surface(
+            color = dialogBg,
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("security_shield_dialog")
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Top Bar
+                Surface(
+                    color = if (isDark) Color(0xFF1C2433) else Color(0xFFEDE0CA),
+                    shadowElevation = 3.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.align(Alignment.Center)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Shield,
+                                    contentDescription = null,
+                                    tint = emeraldGreen,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "درع الأمان والخصوصية الحديدي",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 18.sp
+                                    ),
+                                    color = titleColor,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                            Text(
+                                text = "حماية غير قابلة للاختراق • منع سحب أي بيانات من هاتفك",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp
+                                ),
+                                color = emeraldGreen,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        Surface(
+                            onClick = onDismiss,
+                            shape = CircleShape,
+                            color = if (isDark) Color(0xFF2B364C) else Color(0xFFFAF3E6),
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(38.dp)
+                                .testTag("close_security_dialog_button")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "إغلاق",
+                                    tint = if (isDark) Color(0xFFE8DCCB) else Color(0xFF53351A),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Content
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .widthIn(max = 600.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Status Badge Banner
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = emeraldGreen.copy(alpha = if (isDark) 0.18f else 0.12f),
+                        border = BorderStroke(1.5.dp, emeraldGreen.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VerifiedUser,
+                                    contentDescription = null,
+                                    tint = emeraldGreen,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = report?.overallStatusAr ?: "الدرع الحديدي نشط • محمي 100%",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.5.sp
+                                    ),
+                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF047857),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                            Text(
+                                text = "تم فحص بيئة التشغيل وأذونات النظام: التطبيق معزول تماماً وممنوع بموجب قواعد حماية أندرويد الصارمة من سحب أي صور، أو أسماء، أو موقع، أو ملفات، أو أرقام، أو تسجيلات صوتية.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    lineHeight = 16.sp
+                                ),
+                                color = textColor,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    // Security Pillars Breakdown
+                    report?.items?.forEach { item ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = cardBg,
+                            border = BorderStroke(1.dp, cardBorder),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (item.isSecure) emeraldGreen.copy(alpha = 0.18f) else Color(0xFFEF4444).copy(alpha = 0.18f),
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (item.isSecure) Icons.Default.Check else Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = if (item.isSecure) emeraldGreen else Color(0xFFEF4444),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.titleAr,
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.5.sp
+                                        ),
+                                        color = textColor
+                                    )
+                                    Text(
+                                        text = item.descriptionAr,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 10.5.sp,
+                                            lineHeight = 14.5.sp
+                                        ),
+                                        color = subTextColor
+                                    )
+                                    Text(
+                                        text = "الحالة التقنية: ${item.technicalDetail}",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = if (item.isSecure) emeraldGreen else Color(0xFFEF4444)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Buttons
+                    Button(
+                        onClick = onRefreshAudit,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = emeraldGreen,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("recheck_security_audit_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "إعادة فحص سلامة النظام وتدقيق الأمان الآن",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, cardBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "إغلاق نافذة الأمان",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp
+                            ),
+                            color = textColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

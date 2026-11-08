@@ -11,6 +11,7 @@ import com.example.data.PlayerProfileEntity
 import com.example.data.ShopPurchaseOutcome
 import com.example.engine.AppThemeMode
 import com.example.engine.ArrowPuzzleSolver
+import com.example.engine.ArrowTipStyle
 import com.example.engine.BoardShapeMask
 import com.example.engine.BoardThemePalette
 import com.example.engine.DifficultyTier
@@ -20,6 +21,8 @@ import com.example.engine.MoveCheckResult
 import com.example.engine.PuzzleLevel
 import com.example.engine.SmartLevelGenerator
 import com.example.engine.WindingArrow
+import com.example.security.SecurityAuditReport
+import com.example.security.SecurityShieldManager
 import com.example.update.GitHubAppUpdater
 import com.example.update.GitHubUpdateCheckState
 import kotlinx.coroutines.Dispatchers
@@ -92,6 +95,10 @@ data class GameplayUiState(
     val showSettingsModal: Boolean = false,
     val showThemeModal: Boolean = false,
     val showShopModal: Boolean = false,
+    val showEyeCareReminder: Boolean = false,
+    val showSecurityShieldModal: Boolean = false,
+    val securityAuditReport: SecurityAuditReport? = null,
+    val screenPrivacyProtectionEnabled: Boolean = false,
     val shopFeedbackMessage: String? = null,
     val updateCheckState: GitHubUpdateCheckState = GitHubUpdateCheckState(),
     val zoomResetTrigger: Int = 0
@@ -140,8 +147,10 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
             }
             launch {
                 val (vName, vCode) = GitHubAppUpdater.getInstalledVersionInfo(getApplication())
+                val initialAudit = SecurityShieldManager.performFullSecurityAudit(getApplication())
                 _uiState.update {
                     it.copy(
+                        securityAuditReport = initialAudit,
                         updateCheckState = it.updateCheckState.copy(
                             installedVersionName = vName,
                             installedVersionCode = vCode
@@ -154,6 +163,7 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun navigateTo(screen: AppScreen) {
         if (screen != AppScreen.GAMEPLAY) {
+            persistCurrentActiveLevelProgressIfAny()
             stopTimer()
             stopAutoSolve()
             soundManager.stopAmbientMusic()
@@ -162,11 +172,32 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
             it.copy(
                 currentScreen = screen,
                 showSettingsModal = false,
-                showThemeModal = false
+                showThemeModal = false,
+                showEyeCareReminder = false,
+                showSecurityShieldModal = false
             )
         }
         if (screen == AppScreen.CUSTOM_GENERATOR && _uiState.value.previewCustomLevel == null && !_uiState.value.isGeneratingLevel) {
             generateCustomPreview()
+        }
+    }
+
+    private fun persistCurrentActiveLevelProgressIfAny() {
+        val state = _uiState.value
+        val level = state.activeLevel ?: return
+        if (level.isCustomGenerated || state.isVictory || state.isGameOver) return
+        val remaining = state.remainingArrows
+        if (remaining.isNotEmpty() && remaining.size < level.arrows.size) {
+            val ids = remaining.map { it.id }
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.saveActiveLevelProgress(
+                    levelNumber = level.levelNumber,
+                    remainingArrowIds = ids,
+                    remainingSeconds = state.remainingSeconds,
+                    elapsedSeconds = state.elapsedSeconds,
+                    livesRemaining = state.livesRemaining
+                )
+            }
         }
     }
 
@@ -204,15 +235,27 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         ) ?: state.remainingArrows.firstOrNull() ?: return
 
         soundManager.playArrowPreviewSelect()
+        val moveCheck = ArrowPuzzleSolver.checkMove(
+            level.gridWidth,
+            level.gridHeight,
+            state.remainingArrows,
+            targetArrow
+        )
+        val msg = if (moveCheck is MoveCheckResult.Clear) {
+            "✅ مسار السهم محدد باللون الأحمر: سالك ومفتوح للخروج!"
+        } else {
+            "⛔ مسار السهم محدد باللون الأحمر: مسدود بسهم آخر!"
+        }
+
         _uiState.update {
             it.copy(
                 selectedPreviewArrowId = targetArrow.id,
                 pathInspectCooldownSeconds = 180, // 3 minutes cooldown
-                topToastBanner = "👁 مسار السهم (3 ثوانٍ)"
+                topToastBanner = msg
             )
         }
-        schedulePreviewAutoHide(3000L)
-        scheduleToastDismiss(2200L)
+        schedulePreviewAutoHide(7000L)
+        scheduleToastDismiss(4500L)
     }
 
     fun clearPreviewArrow() {
@@ -273,6 +316,9 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
             val bonusBankSeconds = withContext(Dispatchers.IO) {
                 repository.consumeBonusTimeBank()
             }
+            val savedProgress = withContext(Dispatchers.IO) {
+                repository.getLevelProgress(levelNumber)
+            }
             val generated = withContext(Dispatchers.Default) {
                 SmartLevelGenerator.generateCampaignLevel(
                     levelNumber = levelNumber,
@@ -284,11 +330,39 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
             withContext(Dispatchers.IO) {
                 repository.setActiveLevel(levelNumber)
             }
-            launchLevelIntoGameplay(
-                level = generated,
-                escalationCount = 0,
-                extraPurchasedSeconds = bonusBankSeconds
-            )
+
+            // Check if user has an unfinished session to resume from where they left off
+            val savedIds = if (savedProgress?.hasSavedProgress == true && !savedProgress.savedRemainingArrowIdsCsv.isNullOrBlank()) {
+                savedProgress.savedRemainingArrowIdsCsv.split(",")
+                    .mapNotNull { it.trim().toIntOrNull() }
+                    .toSet()
+            } else {
+                emptySet()
+            }
+            val restoredArrows = if (savedIds.isNotEmpty()) {
+                generated.arrows.filter { it.id in savedIds }
+            } else {
+                emptyList()
+            }
+
+            if (restoredArrows.isNotEmpty() && restoredArrows.size < generated.arrows.size) {
+                launchLevelIntoGameplay(
+                    level = generated,
+                    escalationCount = 0,
+                    extraPurchasedSeconds = bonusBankSeconds,
+                    customRemainingArrows = restoredArrows,
+                    customRemainingSeconds = savedProgress!!.savedRemainingSeconds.coerceAtLeast(20),
+                    customElapsedSeconds = savedProgress.savedElapsedSeconds,
+                    customLivesRemaining = savedProgress.savedLivesRemaining.coerceIn(1, 5),
+                    customBannerMessage = "تم استئناف المستوى $levelNumber (${restoredArrows.size} سهم متبقي)"
+                )
+            } else {
+                launchLevelIntoGameplay(
+                    level = generated,
+                    escalationCount = 0,
+                    extraPurchasedSeconds = bonusBankSeconds
+                )
+            }
         }
     }
 
@@ -371,7 +445,11 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         level: PuzzleLevel,
         escalationCount: Int = _uiState.value.retryEscalationCount,
         customBannerMessage: String? = null,
-        extraPurchasedSeconds: Int = 0
+        extraPurchasedSeconds: Int = 0,
+        customRemainingArrows: List<WindingArrow>? = null,
+        customRemainingSeconds: Int? = null,
+        customElapsedSeconds: Int? = null,
+        customLivesRemaining: Int? = null
     ) {
         val initialMovableCount = level.solverMetrics.initialMovableCount
         val baseTimeLimit = (level.arrows.size * 3 + 50).coerceIn(60, 420)
@@ -391,7 +469,7 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 isGeneratingLevel = false,
                 activeLevel = level,
                 retryEscalationCount = escalationCount,
-                remainingArrows = level.arrows,
+                remainingArrows = customRemainingArrows ?: level.arrows,
                 undoStack = emptyList(),
                 escapingArrows = emptyList(),
                 blockedFeedback = null,
@@ -399,13 +477,13 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 hintedArrowId = null,
                 topToastBanner = bannerText,
                 encouragementBanner = null,
-                livesRemaining = 5,
+                livesRemaining = customLivesRemaining ?: 5,
                 maxLives = 5,
                 comboCount = 0,
                 currentLevelScore = 0,
-                elapsedSeconds = 0,
+                elapsedSeconds = customElapsedSeconds ?: 0,
                 levelTimeLimitSeconds = totalTimeLimit,
-                remainingSeconds = totalTimeLimit,
+                remainingSeconds = customRemainingSeconds ?: totalTimeLimit,
                 isTimeOutGameOver = false,
                 isVictory = false,
                 isGameOver = false,
@@ -414,6 +492,7 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 showSettingsModal = false,
                 showThemeModal = false,
                 showShopModal = false,
+                showEyeCareReminder = false,
                 zoomResetTrigger = it.zoomResetTrigger + 1
             )
         }
@@ -483,6 +562,11 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         val state = _uiState.value
         val level = state.activeLevel ?: return
         stopAutoSolve()
+        if (!level.isCustomGenerated) {
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.clearActiveLevelProgress(level.levelNumber)
+            }
+        }
         // If the player lost at least one attempt (or ran out of attempts/time), starting anew switches to a harder mode (unless mode-lock was purchased)!
         if (state.livesRemaining < state.maxLives || state.isGameOver) {
             escalateAndReopenSameLevel("🔥 إعادة")
@@ -498,25 +582,39 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
     fun onArrowLongPressed(arrowId: Int) {
         val state = _uiState.value
         if (state.isVictory || state.isGameOver) return
-        if (state.remainingArrows.none { it.id == arrowId }) return
+        val targetArrow = state.remainingArrows.firstOrNull { it.id == arrowId } ?: return
+        val level = state.activeLevel ?: return
 
         soundManager.playArrowPreviewSelect()
+        val moveCheck = ArrowPuzzleSolver.checkMove(
+            level.gridWidth,
+            level.gridHeight,
+            state.remainingArrows,
+            targetArrow
+        )
+        val msg = if (moveCheck is MoveCheckResult.Clear) {
+            "✅ مسار السهم محدد باللون الأحمر: سالك ومفتوح للخروج!"
+        } else {
+            "⛔ مسار السهم محدد باللون الأحمر: مسدود بنقطة التصادم!"
+        }
+
         _uiState.update {
             it.copy(
                 selectedPreviewArrowId = arrowId,
-                blockedFeedback = null
+                blockedFeedback = null,
+                topToastBanner = msg
             )
         }
-        // Automatically disappear after 3 seconds so it never stays stuck on screen
-        schedulePreviewAutoHide(3000L)
+        schedulePreviewAutoHide(7000L)
+        scheduleToastDismiss(4000L)
     }
 
     /**
      * Called when the player releases their finger after a press-and-hold gesture.
-     * The preview will still auto-hide within 3 seconds from when it appeared.
+     * The preview will still auto-hide within 7 seconds from when it appeared.
      */
     fun onArrowHoldReleased(arrowId: Int) {
-        // Keep the 3-second timer running so it disappears cleanly after 3 seconds
+        // Keep the timer running so it disappears cleanly
     }
 
     /**
@@ -528,6 +626,9 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         if (state.isVictory || state.isGameOver) return
         if (state.remainingArrows.none { it.id == arrowId }) return
 
+        if (arrowId == state.hintedArrowId || arrowId == state.selectedPreviewArrowId) {
+            _uiState.update { it.copy(hintedArrowId = null, selectedPreviewArrowId = null) }
+        }
         previewAutoHideJob?.cancel()
         executeArrowMove(arrowId)
     }
@@ -566,17 +667,23 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
 
                 soundManager.playArrowEscape(newCombo)
 
-                // Credit earned points immediately to the player's spendable balance (unless using Auto-Solve)
+                val isGoldenArrow = tappedArrow.colorAccentIndex == 1
+                val arrowBonus = if (isGoldenArrow) 35 else 0
+                val totalPointsEarned = pointsEarned + arrowBonus
+
+                // Credit earned points immediately to the player's spendable balance
                 if (!state.usedAutoSolveInCurrentLevel) {
                     viewModelScope.launch(Dispatchers.IO) {
-                        repository.addScorePoints(pointsEarned)
+                        repository.addScorePoints(totalPointsEarned)
                     }
                 }
 
                 val encouragement = when {
-                    newCombo == 4 -> "سلسلة رائعة ×4 🔥"
-                    newCombo == 8 -> "تألق مذهل ×8 👍"
-                    newCombo > 0 && newCombo % 10 == 0 -> "احتراف ×$newCombo 🌟"
+                    isGoldenArrow -> "⭐ أحسنت! سهم ذهبي (+35 نقطة إضافية)"
+                    newCombo == 3 -> "أبدعت! سلسلة متتالية 🔥"
+                    newCombo == 5 -> "نصر مذهل! حركة عبقرية ⚡"
+                    newCombo == 8 -> "رائع جداً! استراتيجية متقنة 🎯"
+                    newCombo > 0 && newCombo % 10 == 0 -> "أنت بطل المتاهات! احتراف ×$newCombo 🌟"
                     else -> null
                 }
 
@@ -589,13 +696,13 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                         selectedPreviewArrowId = if (current.selectedPreviewArrowId == arrowId) null else current.selectedPreviewArrowId,
                         hintedArrowId = if (current.hintedArrowId == arrowId) null else current.hintedArrowId,
                         comboCount = newCombo,
-                        currentLevelScore = current.currentLevelScore + pointsEarned,
+                        currentLevelScore = current.currentLevelScore + totalPointsEarned,
                         encouragementBanner = encouragement ?: current.encouragementBanner
                     )
                 }
 
-                if (encouragement != null && playerProfile.value.voiceEnabled) {
-                    scheduleEncouragementDismiss(2200L)
+                if (encouragement != null) {
+                    scheduleEncouragementDismiss(2400L)
                 }
 
                 viewModelScope.launch {
@@ -609,6 +716,17 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
 
                 if (updatedRemaining.isEmpty()) {
                     onLevelCleared()
+                } else if (!level.isCustomGenerated) {
+                    val ids = updatedRemaining.map { it.id }
+                    viewModelScope.launch(Dispatchers.IO) {
+                        repository.saveActiveLevelProgress(
+                            levelNumber = level.levelNumber,
+                            remainingArrowIds = ids,
+                            remainingSeconds = state.remainingSeconds,
+                            elapsedSeconds = state.elapsedSeconds,
+                            livesRemaining = state.livesRemaining
+                        )
+                    }
                 }
             }
 
@@ -714,11 +832,11 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                     selectedPreviewArrowId = bestArrow?.id,
                     hintCooldownSeconds = 180,
                     pathInspectCooldownSeconds = 180,
-                    topToastBanner = "💡 تلميح جاهز (${movableArrows.size} متاح)"
+                    topToastBanner = "🎯 مسار السهم محدد باللون الأحمر الصريح — اضغط عليه لتحريكه!"
                 )
             }
-            schedulePreviewAutoHide(3000L)
-            scheduleToastDismiss(2200L)
+            schedulePreviewAutoHide(8000L)
+            scheduleToastDismiss(5000L)
         }
     }
 
@@ -846,6 +964,24 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun setShowSecurityShieldModal(show: Boolean) {
+        if (show) {
+            refreshSecurityAudit()
+        }
+        _uiState.update { it.copy(showSecurityShieldModal = show) }
+    }
+
+    fun refreshSecurityAudit() {
+        viewModelScope.launch(Dispatchers.Default) {
+            val report = SecurityShieldManager.performFullSecurityAudit(getApplication())
+            _uiState.update { it.copy(securityAuditReport = report) }
+        }
+    }
+
+    fun toggleScreenPrivacyProtection(enabled: Boolean) {
+        _uiState.update { it.copy(screenPrivacyProtectionEnabled = enabled) }
+    }
+
     fun checkGitHubVersionComparison() {
         val currentCheck = _uiState.value.updateCheckState
         if (currentCheck.isChecking || currentCheck.isDownloading) return
@@ -868,22 +1004,48 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun downloadAndInstallGitHubUpdate() {
         val state = _uiState.value.updateCheckState
-        if (state.isDownloading) return
+        if (state.isDownloading || state.isChecking) return
+
+        // If a valid update APK was already downloaded and the user just granted system install permission, install it now
+        val existingPath = state.readyApkFilePath
+        if (!existingPath.isNullOrBlank()) {
+            val existingFile = java.io.File(existingPath)
+            if (existingFile.exists() && existingFile.length() > 500_000L) {
+                val outcome = GitHubAppUpdater.launchSystemInstallerWithPermissions(getApplication(), existingFile)
+                val statusMsg = when (outcome) {
+                    GitHubAppUpdater.InstallLaunchOutcome.LAUNCHED_INSTALLER ->
+                        "✅ تم فتح مثبّت النظام الآمن لتثبيت التحديث v${state.remoteVersionName ?: ""}."
+                    GitHubAppUpdater.InstallLaunchOutcome.REQUESTED_PERMISSION ->
+                        "🔐 يرجى تفعيل صلاحية «السماح من هذا المصدر» ثم اضغط زر التثبيت مرة أخرى."
+                    GitHubAppUpdater.InstallLaunchOutcome.FAILED ->
+                        "⚠️ تعذر فتح مثبّت النظام تلقائياً."
+                }
+                _uiState.update {
+                    it.copy(updateCheckState = it.updateCheckState.copy(comparisonSummaryAr = statusMsg))
+                }
+                return
+            }
+        }
 
         viewModelScope.launch {
-            // Ensure we have checked the latest release/asset info first
-            val latestInfo = if (state.remoteVersionName == null) {
-                _uiState.update {
-                    it.copy(
-                        updateCheckState = it.updateCheckState.copy(
-                            isChecking = true,
-                            comparisonSummaryAr = "جاري فحص حزمة التحديث من GitHub..."
-                        )
+            _uiState.update {
+                it.copy(
+                    updateCheckState = it.updateCheckState.copy(
+                        isChecking = true,
+                        comparisonSummaryAr = "جاري البحث في رابط GitHub ومقارنة الإصدار الحالي (v${it.updateCheckState.installedVersionName})..."
                     )
+                )
+            }
+
+            // Always perform a fresh check against GitHub based on the installed version
+            val latestInfo = GitHubAppUpdater.checkAndCompareWithGitHub(getApplication())
+
+            // If no newer version exists on GitHub, stop here and show the real comparison result (never fake-download!)
+            if (!latestInfo.isUpdateAvailable || !latestInfo.hasDirectApkAsset) {
+                _uiState.update {
+                    it.copy(updateCheckState = latestInfo.copy(isChecking = false, isDownloading = false))
                 }
-                GitHubAppUpdater.checkAndCompareWithGitHub(getApplication())
-            } else {
-                state
+                return@launch
             }
 
             _uiState.update {
@@ -891,19 +1053,20 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                     updateCheckState = latestInfo.copy(
                         isChecking = false,
                         isDownloading = true,
-                        downloadProgressPercent = 2,
-                        downloadedMegabytes = 0.2f,
-                        comparisonSummaryAr = "جاري تنزيل التحديث داخل التطبيق بالميجات (MB)..."
+                        downloadProgressPercent = 1,
+                        downloadedMegabytes = 0f,
+                        comparisonSummaryAr = "جاري تنزيل الإصدار الجديد (v${latestInfo.remoteVersionName}) من GitHub بالميجات (MB)..."
                     )
                 )
             }
 
-            GitHubAppUpdater.downloadInAppMegabytesAndInstall(
+            GitHubAppUpdater.downloadRealGitHubUpdateAndInstall(
                 context = getApplication(),
                 targetUrl = latestInfo.downloadUrl,
                 hasDirectApk = latestInfo.hasDirectApkAsset,
-                remoteVersion = latestInfo.remoteVersionName ?: latestInfo.installedVersionName,
-                fallbackTotalMb = latestInfo.totalMegabytes.coerceAtLeast(16.8f),
+                installedVersion = latestInfo.installedVersionName,
+                remoteVersion = latestInfo.remoteVersionName,
+                expectedTotalMb = latestInfo.totalMegabytes,
                 onProgressMb = { downloadedMb, totalMb, pct ->
                     _uiState.update {
                         it.copy(
@@ -912,17 +1075,17 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                                 downloadedMegabytes = downloadedMb,
                                 totalMegabytes = totalMb,
                                 downloadProgressPercent = pct,
-                                comparisonSummaryAr = "جاري التنزيل داخل التطبيق: ${GitHubAppUpdater.formatMb(downloadedMb)} / ${GitHubAppUpdater.formatMb(totalMb)} ($pct%)"
+                                comparisonSummaryAr = "جاري تنزيل التحديث من GitHub: ${GitHubAppUpdater.formatMb(downloadedMb)} / ${GitHubAppUpdater.formatMb(totalMb)} ($pct%)"
                             )
                         )
                     }
                 },
-                onComplete = { _, msg, apkPath ->
+                onComplete = { success, msg, apkPath ->
                     _uiState.update {
                         it.copy(
                             updateCheckState = it.updateCheckState.copy(
                                 isDownloading = false,
-                                downloadProgressPercent = 100,
+                                downloadProgressPercent = if (success) 100 else 0,
                                 comparisonSummaryAr = msg,
                                 readyApkFilePath = apkPath
                             )
@@ -977,25 +1140,17 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun selectBoardTheme(theme: BoardThemePalette) {
         viewModelScope.launch(Dispatchers.IO) {
-            val newThemeMode = if (theme.isDark) AppThemeMode.DARK.id else AppThemeMode.LIGHT.id
-            repository.updateSettings(selectedThemeId = theme.id, themeMode = newThemeMode)
+            // ONLY changes the arrow and grid colors for the puzzle board.
+            // Does NOT hijack the app theme mode chosen in Settings!
+            repository.updateSettings(selectedThemeId = theme.id)
         }
     }
 
     fun selectThemeMode(mode: AppThemeMode) {
         viewModelScope.launch(Dispatchers.IO) {
-            val updatedPaletteId = when (mode) {
-                AppThemeMode.DARK -> BoardThemePalette.OBSIDIAN_NIGHT.id
-                AppThemeMode.LIGHT -> {
-                    val cur = BoardThemePalette.fromId(playerProfile.value.selectedThemeId)
-                    if (cur.isDark) BoardThemePalette.AMAZE_CLASSIC.id else cur.id
-                }
-                AppThemeMode.SYSTEM -> playerProfile.value.selectedThemeId
-            }
-            repository.updateSettings(
-                selectedThemeId = updatedPaletteId,
-                themeMode = mode.id
-            )
+            // ONLY changes the overall UI theme (LIGHT, DARK, SYSTEM).
+            // Does NOT overwrite the board arrow palette!
+            repository.updateSettings(themeMode = mode.id)
         }
     }
 
@@ -1353,6 +1508,12 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }
 
+        if (!level.isCustomGenerated) {
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.clearActiveLevelProgress(level.levelNumber)
+            }
+        }
+
         // Only unlock the next level and save completion if the player solved it themselves WITHOUT auto-solve!
         // Note: arrow escape points were already added in real time, so we add `lifeBonus` here.
         if (!state.usedAutoSolveInCurrentLevel) {
@@ -1368,13 +1529,21 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    private var continuousFocusSeconds = 0
+
     private fun startTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (isActive) {
                 delay(1000L)
                 val cur = _uiState.value
-                if (cur.currentScreen == AppScreen.GAMEPLAY && !cur.isVictory && !cur.isGameOver && !cur.showSettingsModal && !cur.showShopModal) {
+                if (cur.currentScreen == AppScreen.GAMEPLAY && !cur.isVictory && !cur.isGameOver && !cur.showSettingsModal && !cur.showShopModal && !cur.showEyeCareReminder) {
+                    continuousFocusSeconds++
+                    if (continuousFocusSeconds >= 1200) {
+                        continuousFocusSeconds = 0
+                        _uiState.update { it.copy(showEyeCareReminder = true) }
+                    }
+
                     val nextRem = (cur.remainingSeconds - 1).coerceAtLeast(0)
                     val nextElapsed = cur.elapsedSeconds + 1
                     val nextPathCooldown = (cur.pathInspectCooldownSeconds - 1).coerceAtLeast(0)
@@ -1409,6 +1578,34 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                 }
             }
+        }
+    }
+
+    fun dismissEyeCareReminder() {
+        _uiState.update { it.copy(showEyeCareReminder = false) }
+    }
+
+    fun enableEyeProtectionAndDismissReminder() {
+        toggleEyeProtection(true)
+        dismissEyeCareReminder()
+    }
+
+    fun selectArrowTipStyle(style: ArrowTipStyle) {
+        viewModelScope.launch {
+            repository.updateSettings(arrowTipStyle = style.name)
+        }
+    }
+
+    fun toggleEyeProtection(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.updateSettings(eyeProtectionMode = enabled)
+            _uiState.update {
+                it.copy(
+                    topToastBanner = if (enabled) "تم تفعيل وضع حماية البصر 🌿 (فلتر دافئ مريح)" else "تم إيقاف وضع حماية البصر"
+                )
+            }
+            delay(2200L)
+            _uiState.update { it.copy(topToastBanner = null) }
         }
     }
 

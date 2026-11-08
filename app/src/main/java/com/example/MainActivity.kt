@@ -1,25 +1,31 @@
 package com.example
 
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.foundation.isSystemInDarkTheme
 import com.example.engine.AppThemeMode
 import com.example.engine.BoardThemePalette
+import com.example.security.SecurityShieldManager
+import com.example.ui.components.AmazeEyeCareReminderDialog
 import com.example.ui.components.AmazePointsShopDialog
+import com.example.ui.components.AmazeSecurityShieldDialog
 import com.example.ui.components.AmazeSettingsDialog
 import com.example.ui.components.AmazeThemeDialog
 import com.example.ui.screens.CustomGeneratorScreen
@@ -33,6 +39,7 @@ import com.example.viewmodel.AppScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SecurityShieldManager.applyAntiTapjacking(this)
         enableEdgeToEdge()
         setContent {
             AmazeArrowsApp()
@@ -56,6 +63,12 @@ fun AmazeArrowsApp(
         isSystemDark = isSystemDark
     )
 
+    val context = LocalContext.current
+    val activity = context as? Activity
+    LaunchedEffect(uiState.screenPrivacyProtectionEnabled) {
+        SecurityShieldManager.setScreenCaptureProtection(activity, uiState.screenPrivacyProtectionEnabled)
+    }
+
     MyApplicationTheme(darkTheme = themePalette.isDark) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(
@@ -76,7 +89,8 @@ fun AmazeArrowsApp(
                                 onOpenCustomGenerator = { viewModel.navigateTo(AppScreen.CUSTOM_GENERATOR) },
                                 onOpenShop = { viewModel.setShowShopModal(true) },
                                 onOpenSettings = { viewModel.setShowSettingsModal(true) },
-                                onOpenThemes = { viewModel.setShowThemeModal(true) }
+                                onOpenThemes = { viewModel.setShowThemeModal(true) },
+                                onOpenSecurityShield = { viewModel.setShowSecurityShieldModal(true) }
                             )
                         }
 
@@ -139,6 +153,7 @@ fun AmazeArrowsApp(
                     AmazeSettingsDialog(
                         profile = profile,
                         showRestartButton = uiState.currentScreen == AppScreen.GAMEPLAY,
+                        themePalette = themePalette,
                         updateCheckState = uiState.updateCheckState,
                         onCheckGitHubUpdate = { viewModel.checkGitHubVersionComparison() },
                         onDownloadGitHubUpdate = { viewModel.downloadAndInstallGitHubUpdate() },
@@ -148,13 +163,37 @@ fun AmazeArrowsApp(
                         onToggleMusic = { viewModel.toggleMusic(it) },
                         onToggleVoice = { viewModel.toggleVoiceEncouragement(it) },
                         onSelectThemeMode = { viewModel.selectThemeMode(it) },
+                        onSelectArrowTipStyle = { viewModel.selectArrowTipStyle(it) },
+                        onToggleEyeProtection = { viewModel.toggleEyeProtection(it) },
+                        screenPrivacyProtection = uiState.screenPrivacyProtectionEnabled,
+                        onToggleScreenPrivacyProtection = { viewModel.toggleScreenPrivacyProtection(it) },
+                        onOpenSecurityShieldDialog = { viewModel.setShowSecurityShieldModal(true) },
                         onRestartLevel = { viewModel.restartCurrentLevel() }
+                    )
+                }
+
+                if (uiState.showSecurityShieldModal) {
+                    AmazeSecurityShieldDialog(
+                        report = uiState.securityAuditReport,
+                        isDark = themePalette.isDark,
+                        onRefreshAudit = { viewModel.refreshSecurityAudit() },
+                        onDismiss = { viewModel.setShowSecurityShieldModal(false) }
+                    )
+                }
+
+                if (uiState.showEyeCareReminder) {
+                    AmazeEyeCareReminderDialog(
+                        themePalette = themePalette,
+                        eyeProtectionActive = profile.eyeProtectionMode,
+                        onEnableEyeProtection = { viewModel.enableEyeProtectionAndDismissReminder() },
+                        onDismiss = { viewModel.dismissEyeCareReminder() }
                     )
                 }
 
                 if (uiState.showThemeModal) {
                     AmazeThemeDialog(
                         selectedThemeId = profile.selectedThemeId,
+                        isDark = themePalette.isDark,
                         onSelectTheme = { viewModel.selectBoardTheme(it) },
                         onDismiss = { viewModel.setShowThemeModal(false) }
                     )
@@ -164,6 +203,7 @@ fun AmazeArrowsApp(
                     AmazePointsShopDialog(
                         profile = profile,
                         feedbackMessage = uiState.shopFeedbackMessage,
+                        isDark = themePalette.isDark,
                         onPurchaseExtraTime = { viewModel.purchaseExtraTimeWithPoints() },
                         onPurchaseUnlockTools = { viewModel.purchaseUnlockAllToolsWithPoints() },
                         onPurchaseStayInMode = { tier -> viewModel.purchaseStayInModeWithPoints(tier) },

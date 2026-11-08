@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -55,8 +56,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.engine.ArrowPuzzleSolver
+import com.example.engine.ArrowTipStyle
 import com.example.engine.BoardThemePalette
 import com.example.engine.Direction
+import com.example.engine.MoveCheckResult
 import com.example.engine.PuzzleLevel
 import com.example.engine.WindingArrow
 import com.example.viewmodel.BlockedArrowFeedback
@@ -83,6 +86,8 @@ fun AmazeBoardCanvas(
     onArrowTapped: (Int) -> Unit,
     modifier: Modifier = Modifier,
     selectedPreviewArrowId: Int? = null,
+    arrowTipStyle: ArrowTipStyle = ArrowTipStyle.CLASSIC_TRIANGLE,
+    eyeProtectionMode: Boolean = false,
     onArrowLongPressed: (Int) -> Unit = {},
     onArrowHoldReleased: (Int) -> Unit = {},
     onClearPreview: () -> Unit = {}
@@ -109,21 +114,34 @@ fun AmazeBoardCanvas(
         }
     }
 
-    val pulseFraction = if (hintedArrowId != null || selectedPreviewArrowId != null) {
-        val infiniteTransition = rememberInfiniteTransition(label = "hintPulse")
-        val anim by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(900, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "pulseFraction"
-        )
-        anim
-    } else {
-        0.5f
-    }
+    val infiniteTransition = rememberInfiniteTransition(label = "laserPathTransition")
+    val pulseFraction by infiniteTransition.animateFloat(
+        initialValue = 0.82f,
+        targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseFraction"
+    )
+    val dashOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 60f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dashOffset"
+    )
+    val laserPulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.75f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(450, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "laserPulseAlpha"
+    )
 
     // Distinct, high-contrast Grid Dots underneath the arrows for easy visual tracking
     val visibleDotColor = if (themePalette.isDark) Color(0xFF8FA4C4) else Color(0xFF7D6247)
@@ -164,7 +182,7 @@ fun AmazeBoardCanvas(
                     val unzoomedX = (offset.x - centerX - panOffset.x) / zoomScale + centerX
                     val unzoomedY = (offset.y - centerY - panOffset.y) / zoomScale + centerY
 
-                    val paddingPx = min(cw, ch) * 0.045f
+                    val paddingPx = min(cw, ch) * 0.025f
                     val availW = cw - paddingPx * 2f
                     val availH = ch - paddingPx * 2f
                     val cellStep = min(
@@ -281,7 +299,7 @@ fun AmazeBoardCanvas(
                 .fillMaxSize()
                 .clipToBounds()
         ) {
-            val paddingPx = min(size.width, size.height) * 0.045f
+            val paddingPx = min(size.width, size.height) * 0.025f
             val availW = size.width - paddingPx * 2f
             val availH = size.height - paddingPx * 2f
 
@@ -337,49 +355,179 @@ fun AmazeBoardCanvas(
                             }
                         }
 
-                        // 1.5 Draw Light, Completely Dotted Semi-Transparent Black Line (خط شفاف أسود جميل منقط كاملاً)
-                        // ONLY when an arrow is long-pressed (auto-disappears after 3 seconds)
-                        if (selectedPreviewArrowId != null) {
-                            val previewArrow = remainingArrows.firstOrNull { it.id == selectedPreviewArrowId }
+                        // 1.5 Draw Ultra-Vivid Crimson/Neon Red Path with Directional Beam (مسار أحمر نيون بارز وعالي الدقة)
+                        // Triggered for both Hint (التلميح) and Path Inspection (فحص المسار والضغط المطول)
+                        val previewTargetArrowId = selectedPreviewArrowId ?: hintedArrowId
+                        if (previewTargetArrowId != null) {
+                            val previewArrow = remainingArrows.firstOrNull { it.id == previewTargetArrowId }
                             if (previewArrow != null) {
                                 val headX = originX + previewArrow.head.x * cellStep
                                 val headY = originY + previewArrow.head.y * cellStep
                                 val dir = previewArrow.headDirection
 
-                                val edgeGridX = when (dir) {
-                                    Direction.LEFT -> -0.75f
-                                    Direction.RIGHT -> level.gridWidth - 0.25f
-                                    else -> previewArrow.head.x.toFloat()
-                                }
-                                val edgeGridY = when (dir) {
-                                    Direction.UP -> -0.75f
-                                    Direction.DOWN -> level.gridHeight - 0.25f
-                                    else -> previewArrow.head.y.toFloat()
+                                val moveResult = ArrowPuzzleSolver.checkMove(
+                                    level.gridWidth,
+                                    level.gridHeight,
+                                    remainingArrows,
+                                    previewArrow
+                                )
+
+                                val endX: Float
+                                val endY: Float
+                                val isMoveClear: Boolean
+                                when (moveResult) {
+                                    is MoveCheckResult.Clear -> {
+                                        isMoveClear = true
+                                        val edgeGridX = when (dir) {
+                                            Direction.LEFT -> -0.90f
+                                            Direction.RIGHT -> level.gridWidth - 0.10f
+                                            else -> previewArrow.head.x.toFloat()
+                                        }
+                                        val edgeGridY = when (dir) {
+                                            Direction.UP -> -0.90f
+                                            Direction.DOWN -> level.gridHeight - 0.10f
+                                            else -> previewArrow.head.y.toFloat()
+                                        }
+                                        endX = originX + edgeGridX * cellStep
+                                        endY = originY + edgeGridY * cellStep
+                                    }
+                                    is MoveCheckResult.Blocked -> {
+                                        isMoveClear = false
+                                        endX = originX + moveResult.collisionPoint.x.toFloat() * cellStep
+                                        endY = originY + moveResult.collisionPoint.y.toFloat() * cellStep
+                                    }
                                 }
 
-                                val edgeX = originX + edgeGridX * cellStep
-                                val edgeY = originY + edgeGridY * cellStep
-
-                                // Subtle soft lane shadow showing the arrow's corridor
+                                // Layer 1: Wide Red/Crimson Glowing Aura (هالة حمراء مشعة عريضة)
                                 drawLine(
-                                    color = dottedPathShadowColor,
+                                    color = Color(0xFFFF1744).copy(alpha = 0.38f * laserPulseAlpha),
                                     start = Offset(headX, headY),
-                                    end = Offset(edgeX, edgeY),
-                                    strokeWidth = (cellStep * 0.34f).coerceAtLeast(6f),
+                                    end = Offset(endX, endY),
+                                    strokeWidth = (cellStep * 0.46f).coerceAtLeast(14f),
                                     cap = StrokeCap.Round
                                 )
 
-                                // Light, completely dotted semi-transparent black guide line
+                                // Layer 2: Contrasting Outline Border (إطار تباين ناصع)
                                 drawLine(
-                                    color = dottedPathLineColor,
+                                    color = if (themePalette.isDark) Color(0xFF0F172A) else Color(0xFFFFFFFF),
                                     start = Offset(headX, headY),
-                                    end = Offset(edgeX, edgeY),
-                                    strokeWidth = (cellStep * 0.13f).coerceIn(2.2f, 4.5f),
+                                    end = Offset(endX, endY),
+                                    strokeWidth = (cellStep * 0.28f).coerceAtLeast(9f),
+                                    cap = StrokeCap.Round
+                                )
+
+                                // Layer 3: Core Solid Vivid Crimson Red Path (الخط الأحمر الصريح المميز بدقة)
+                                drawLine(
+                                    color = Color(0xFFFF1744),
+                                    start = Offset(headX, headY),
+                                    end = Offset(endX, endY),
+                                    strokeWidth = (cellStep * 0.18f).coerceAtLeast(5.5f),
                                     cap = StrokeCap.Round,
                                     pathEffect = PathEffect.dashPathEffect(
-                                        floatArrayOf(cellStep * 0.14f, cellStep * 0.22f),
-                                        0f
+                                        floatArrayOf(cellStep * 0.24f, cellStep * 0.14f),
+                                        -dashOffset
                                     )
+                                )
+
+                                // Layer 4: Directional Chevrons along the beam
+                                val totalDist = kotlin.math.hypot(endX - headX, endY - headY)
+                                if (totalDist > cellStep * 0.4f) {
+                                    val stepsCount = (totalDist / cellStep).toInt()
+                                    for (s in 1..stepsCount) {
+                                        val t = (s * cellStep) / totalDist
+                                        val cx = headX + (endX - headX) * t
+                                        val cy = headY + (endY - headY) * t
+                                        val chevSize = cellStep * 0.18f
+                                        val perpX = -dir.dy.toFloat()
+                                        val perpY = dir.dx.toFloat()
+                                        val cTipX = cx + dir.dx * chevSize
+                                        val cTipY = cy + dir.dy * chevSize
+                                        val cLeftX = cx - dir.dx * chevSize * 0.5f + perpX * chevSize
+                                        val cLeftY = cy - dir.dy * chevSize * 0.5f + perpY * chevSize
+                                        val cRightX = cx - dir.dx * chevSize * 0.5f - perpX * chevSize
+                                        val cRightY = cy - dir.dy * chevSize * 0.5f - perpY * chevSize
+
+                                        drawLine(
+                                            color = Color.White,
+                                            start = Offset(cLeftX, cLeftY),
+                                            end = Offset(cTipX, cTipY),
+                                            strokeWidth = (cellStep * 0.08f).coerceIn(2.5f, 4.5f),
+                                            cap = StrokeCap.Round
+                                        )
+                                        drawLine(
+                                            color = Color.White,
+                                            start = Offset(cRightX, cRightY),
+                                            end = Offset(cTipX, cTipY),
+                                            strokeWidth = (cellStep * 0.08f).coerceIn(2.5f, 4.5f),
+                                            cap = StrokeCap.Round
+                                        )
+                                    }
+                                }
+
+                                // Layer 5: End Target Beacon
+                                if (isMoveClear) {
+                                    val exitRadius = (cellStep * 0.40f).coerceAtLeast(14f)
+                                    drawCircle(
+                                        color = Color(0xFF00E676).copy(alpha = 0.35f * laserPulseAlpha),
+                                        radius = exitRadius * (1.25f + 0.15f * pulseFraction),
+                                        center = Offset(endX, endY)
+                                    )
+                                    drawCircle(
+                                        color = Color(0xFF00E676),
+                                        radius = exitRadius,
+                                        center = Offset(endX, endY)
+                                    )
+                                    drawCircle(
+                                        color = Color.White,
+                                        radius = exitRadius * 0.45f,
+                                        center = Offset(endX, endY)
+                                    )
+                                } else {
+                                    val stopRadius = (cellStep * 0.42f).coerceAtLeast(15f)
+                                    drawCircle(
+                                        color = Color(0xFFFF1744).copy(alpha = 0.40f * laserPulseAlpha),
+                                        radius = stopRadius * (1.30f + 0.20f * pulseFraction),
+                                        center = Offset(endX, endY)
+                                    )
+                                    drawCircle(
+                                        color = Color(0xFFFF1744),
+                                        radius = stopRadius,
+                                        center = Offset(endX, endY)
+                                    )
+                                    val xHalf = stopRadius * 0.48f
+                                    drawLine(
+                                        color = Color.White,
+                                        start = Offset(endX - xHalf, endY - xHalf),
+                                        end = Offset(endX + xHalf, endY + xHalf),
+                                        strokeWidth = 4f,
+                                        cap = StrokeCap.Round
+                                    )
+                                    drawLine(
+                                        color = Color.White,
+                                        start = Offset(endX + xHalf, endY - xHalf),
+                                        end = Offset(endX - xHalf, endY + xHalf),
+                                        strokeWidth = 4f,
+                                        cap = StrokeCap.Round
+                                    )
+                                }
+
+                                // Layer 6: Beacon Ring at the Arrow Head
+                                val headBeaconRadius = (cellStep * (0.34f + 0.14f * pulseFraction)).coerceAtLeast(12f)
+                                drawCircle(
+                                    color = Color(0xFFFF1744).copy(alpha = 0.45f * laserPulseAlpha),
+                                    radius = headBeaconRadius * 1.35f,
+                                    center = Offset(headX, headY)
+                                )
+                                drawCircle(
+                                    color = Color(0xFFFF1744),
+                                    radius = headBeaconRadius,
+                                    center = Offset(headX, headY),
+                                    style = Stroke(width = (cellStep * 0.10f).coerceIn(3.0f, 6.0f))
+                                )
+                                drawCircle(
+                                    color = Color.White,
+                                    radius = headBeaconRadius * 0.35f,
+                                    center = Offset(headX, headY)
                                 )
                             }
                         }
@@ -394,13 +542,13 @@ fun AmazeBoardCanvas(
                                 val colY = originY + blockedFeedback.collisionPoint.y * cellStep
 
                                 drawLine(
-                                    color = dottedPathLineColor,
+                                    color = Color(0xFFFF1744).copy(alpha = 0.85f),
                                     start = Offset(headX, headY),
                                     end = Offset(colX, colY),
-                                    strokeWidth = (cellStep * 0.12f).coerceIn(2.0f, 4.0f),
+                                    strokeWidth = (cellStep * 0.15f).coerceIn(3.0f, 6.0f),
                                     cap = StrokeCap.Round,
                                     pathEffect = PathEffect.dashPathEffect(
-                                        floatArrayOf(cellStep * 0.14f, cellStep * 0.22f),
+                                        floatArrayOf(cellStep * 0.16f, cellStep * 0.14f),
                                         0f
                                     )
                                 )
@@ -411,6 +559,7 @@ fun AmazeBoardCanvas(
                         for (arrow in remainingArrows) {
                             val isHinted = arrow.id == hintedArrowId
                             val isSelectedPreview = arrow.id == selectedPreviewArrowId
+                            val isInspectedOrHinted = isHinted || isSelectedPreview
                             val isBlockedTarget = blockedFeedback?.arrowId == arrow.id
                             val isBlocker = blockedFeedback?.blockerArrowId == arrow.id
 
@@ -429,10 +578,9 @@ fun AmazeBoardCanvas(
                             val arrowColor = when {
                                 isBlockedTarget -> blockedColor
                                 isBlocker -> blockedColor.copy(alpha = 0.90f)
-                                isHinted || isSelectedPreview -> highlightColor
+                                isInspectedOrHinted -> Color(0xFFFF1744) // Bright Neon Red for Hint & Preview!
                                 arrow.colorAccentIndex == 1 -> highlightColor
-                                arrow.id % 2 == 0 -> primaryArrowColor
-                                else -> secondaryArrowColor
+                                else -> primaryArrowColor
                             }
 
                             if (bounceSteps > 0.005f) {
@@ -447,6 +595,7 @@ fun AmazeBoardCanvas(
                                     isHighlighted = isHinted || isSelectedPreview || arrow.colorAccentIndex == 1,
                                     hasSparkleBadge = arrow.hasSparkleBadge,
                                     pulseFraction = pulseFraction,
+                                    arrowTipStyle = arrowTipStyle,
                                     strokePath = reusableStrokePath,
                                     headPath = reusableHeadPath
                                 )
@@ -459,6 +608,7 @@ fun AmazeBoardCanvas(
                                     color = arrowColor,
                                     isHighlighted = isHinted || isSelectedPreview || arrow.colorAccentIndex == 1,
                                     pulseFraction = pulseFraction,
+                                    arrowTipStyle = arrowTipStyle,
                                     strokePath = reusableStrokePath,
                                     headPath = reusableHeadPath
                                 )
@@ -501,27 +651,30 @@ fun AmazeBoardCanvas(
                                 isHighlighted = true,
                                 hasSparkleBadge = false,
                                 pulseFraction = 0.5f,
+                                arrowTipStyle = arrowTipStyle,
                                 strokePath = reusableStrokePath,
                                 headPath = reusableHeadPath
                             )
                         }
                     }
                 }
+
             }
         }
 
         // Floating Quick Zoom & Pan Helper Pill (تقريب / تبعيد / توسيط بلمسة واحدة)
-        val zoomPillBg = if (themePalette.isDark) Color(0xFF232B3B).copy(alpha = 0.90f) else Color(0xFFEDE0CA).copy(alpha = 0.92f)
-        val zoomPillText = if (themePalette.isDark) Color(0xFFE8DCCB) else Color(0xFF53351A)
+        val zoomPillBg = if (themePalette.isDark) Color(0xFF28334A) else Color(0xFFEDE0CA).copy(alpha = 0.94f)
+        val zoomPillText = if (themePalette.isDark) Color(0xFFFFFFFF) else Color(0xFF3E240E)
+        val zoomPillBorder = if (themePalette.isDark) Color(0xFF47587A) else Color(0xFFC8B499)
 
         Surface(
             shape = RoundedCornerShape(50),
             color = zoomPillBg,
-            shadowElevation = 2.dp,
+            shadowElevation = 3.dp,
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 12.dp, bottom = 8.dp)
-                .border(1.dp, zoomPillText.copy(alpha = 0.15f), RoundedCornerShape(50))
+                .border(1.dp, zoomPillBorder, RoundedCornerShape(50))
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -599,13 +752,14 @@ private fun DrawScope.drawStaticWindingArrow(
     color: Color,
     isHighlighted: Boolean,
     pulseFraction: Float,
+    arrowTipStyle: ArrowTipStyle,
     strokePath: Path,
     headPath: Path
 ) {
     val cells = arrow.cells
     if (cells.isEmpty()) return
 
-    val strokeWidth = (cellStep * 0.29f).coerceIn(3.4f, 13.5f)
+    val strokeWidth = (cellStep * 0.48f).coerceIn(4.8f, 18.0f)
     strokePath.reset()
 
     val firstPx = originX + cells[0].x * cellStep
@@ -632,7 +786,8 @@ private fun DrawScope.drawStaticWindingArrow(
         color = color,
         isHighlighted = isHighlighted,
         hasSparkleBadge = arrow.hasSparkleBadge,
-        pulseFraction = pulseFraction
+        pulseFraction = pulseFraction,
+        arrowTipStyle = arrowTipStyle
     )
 }
 
@@ -646,12 +801,13 @@ private fun DrawScope.drawWindingArrowPolyline(
     isHighlighted: Boolean,
     hasSparkleBadge: Boolean,
     pulseFraction: Float,
+    arrowTipStyle: ArrowTipStyle,
     strokePath: Path,
     headPath: Path
 ) {
     if (gridPoints.isEmpty()) return
 
-    val strokeWidth = (cellStep * 0.29f).coerceIn(3.4f, 13.5f)
+    val strokeWidth = (cellStep * 0.48f).coerceIn(4.8f, 18.0f)
     strokePath.reset()
 
     val firstPx = originX + gridPoints[0].first * cellStep
@@ -679,7 +835,8 @@ private fun DrawScope.drawWindingArrowPolyline(
         color = color,
         isHighlighted = isHighlighted,
         hasSparkleBadge = hasSparkleBadge,
-        pulseFraction = pulseFraction
+        pulseFraction = pulseFraction,
+        arrowTipStyle = arrowTipStyle
     )
 }
 
@@ -694,7 +851,8 @@ private fun DrawScope.finishDrawingArrowPaths(
     color: Color,
     isHighlighted: Boolean,
     hasSparkleBadge: Boolean,
-    pulseFraction: Float
+    pulseFraction: Float,
+    arrowTipStyle: ArrowTipStyle = ArrowTipStyle.CLASSIC_TRIANGLE
 ) {
     if (isHighlighted) {
         val glowStroke = strokeWidth * (1.75f + 0.30f * pulseFraction)
@@ -719,9 +877,9 @@ private fun DrawScope.finishDrawingArrowPaths(
         )
     )
 
-    val tipAdvance = cellStep * 0.28f
-    val backRetreat = cellStep * 0.18f
-    val wingHalfWidth = (cellStep * 0.30f).coerceAtLeast(strokeWidth * 1.15f)
+    val tipAdvance = cellStep * 0.34f
+    val backRetreat = cellStep * 0.20f
+    val wingHalfWidth = (cellStep * 0.40f).coerceAtLeast(strokeWidth * 0.90f)
 
     val dx = headDirection.dx.toFloat()
     val dy = headDirection.dy.toFloat()
@@ -739,47 +897,60 @@ private fun DrawScope.finishDrawingArrowPaths(
     val rightWingY = baseCenterY - perpY * wingHalfWidth
 
     headPath.reset()
-    headPath.moveTo(tipX, tipY)
-    headPath.lineTo(leftWingX, leftWingY)
-    headPath.lineTo(rightWingX, rightWingY)
-    headPath.close()
+    when (arrowTipStyle) {
+        ArrowTipStyle.CLASSIC_TRIANGLE -> {
+            headPath.moveTo(tipX, tipY)
+            headPath.lineTo(leftWingX, leftWingY)
+            headPath.lineTo(rightWingX, rightWingY)
+            headPath.close()
+        }
+        ArrowTipStyle.STEALTH_CHEVRON -> {
+            val notchX = baseCenterX + dx * (backRetreat * 0.75f)
+            val notchY = baseCenterY + dy * (backRetreat * 0.75f)
+            headPath.moveTo(tipX, tipY)
+            headPath.lineTo(leftWingX, leftWingY)
+            headPath.lineTo(notchX, notchY)
+            headPath.lineTo(rightWingX, rightWingY)
+            headPath.close()
+        }
+        ArrowTipStyle.DIAMOND_HEAD -> {
+            val diamondBackX = headX - dx * (backRetreat * 1.4f)
+            val diamondBackY = headY - dy * (backRetreat * 1.4f)
+            headPath.moveTo(tipX, tipY)
+            headPath.lineTo(leftWingX, leftWingY)
+            headPath.lineTo(diamondBackX, diamondBackY)
+            headPath.lineTo(rightWingX, rightWingY)
+            headPath.close()
+        }
+        ArrowTipStyle.ROUNDED_SHIELD -> {
+            val ctrlAdvX = tipX - dx * (tipAdvance * 0.35f)
+            val ctrlAdvY = tipY - dy * (tipAdvance * 0.35f)
+            headPath.moveTo(tipX, tipY)
+            headPath.quadraticBezierTo(ctrlAdvX + perpX * (wingHalfWidth * 0.85f), ctrlAdvY + perpY * (wingHalfWidth * 0.85f), leftWingX, leftWingY)
+            headPath.lineTo(rightWingX, rightWingY)
+            headPath.quadraticBezierTo(ctrlAdvX - perpX * (wingHalfWidth * 0.85f), ctrlAdvY - perpY * (wingHalfWidth * 0.85f), tipX, tipY)
+            headPath.close()
+        }
+        ArrowTipStyle.HARPOON_BARB -> {
+            val barbBackX = baseCenterX - dx * (backRetreat * 0.6f)
+            val barbBackY = baseCenterY - dy * (backRetreat * 0.6f)
+            val barbLeftX = barbBackX + perpX * (wingHalfWidth * 1.25f)
+            val barbLeftY = barbBackY + perpY * (wingHalfWidth * 1.25f)
+            val barbRightX = barbBackX - perpX * (wingHalfWidth * 1.25f)
+            val barbRightY = barbBackY - perpY * (wingHalfWidth * 1.25f)
+            headPath.moveTo(tipX, tipY)
+            headPath.lineTo(barbLeftX, barbLeftY)
+            headPath.lineTo(baseCenterX + perpX * (wingHalfWidth * 0.35f), baseCenterY + perpY * (wingHalfWidth * 0.35f))
+            headPath.lineTo(baseCenterX - perpX * (wingHalfWidth * 0.35f), baseCenterY - perpY * (wingHalfWidth * 0.35f))
+            headPath.lineTo(barbRightX, barbRightY)
+            headPath.close()
+        }
+    }
 
     drawPath(
         path = headPath,
         color = color
     )
-
-    if (hasSparkleBadge) {
-        val badgeRadius = cellStep * (0.48f + 0.06f * pulseFraction)
-        val sparkleGold = Color(0xFFFFEE58)
-        val sparkleRing = Color(0xFFF3A833)
-        drawCircle(
-            color = sparkleGold.copy(alpha = 0.35f),
-            radius = badgeRadius * 1.35f,
-            center = Offset(headX, headY)
-        )
-        drawCircle(
-            color = sparkleRing,
-            radius = badgeRadius * 0.85f,
-            center = Offset(headX, headY),
-            style = Stroke(width = strokeWidth * 0.65f)
-        )
-        drawCircle(
-            color = sparkleGold,
-            radius = strokeWidth * 0.55f,
-            center = Offset(headX - badgeRadius * 0.95f, headY - badgeRadius * 0.55f)
-        )
-        drawCircle(
-            color = sparkleGold,
-            radius = strokeWidth * 0.55f,
-            center = Offset(headX - badgeRadius * 0.75f, headY + badgeRadius * 0.75f)
-        )
-        drawCircle(
-            color = sparkleGold,
-            radius = strokeWidth * 0.55f,
-            center = Offset(headX + badgeRadius * 0.85f, headY - badgeRadius * 0.65f)
-        )
-    }
 }
 
 private fun findTappedArrow(

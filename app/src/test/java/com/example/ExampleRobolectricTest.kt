@@ -9,17 +9,17 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 class ExampleRobolectricTest {
 
   @Test
   fun `read string from context and verify reverse level generator`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val appName = context.getString(R.string.app_name)
-    assertEquals("Amaze Arrows", appName)
+    assertEquals("Maze Arrows", appName)
 
     val level1 = com.example.engine.SmartLevelGenerator.generateCampaignLevel(1, 0x12345678L)
-    val report = com.example.engine.ArrowEscapeSolver.solve(level1.boardWidth, level1.boardHeight, level1.arrows)
+    val report = com.example.engine.ArrowPuzzleSolver.solve(level1.gridWidth, level1.gridHeight, level1.arrows)
     assertEquals(true, report.isSolvable)
   }
 }

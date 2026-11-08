@@ -193,7 +193,7 @@ enum class DifficultyTier(
     ),
     PRO(
         tierIndex = 4,
-        arabicLabel = "احترافي",
+        arabicLabel = "محترف",
         englishLabel = "Pro Master",
         descriptionAr = "المراحل 201–500: أقصى درجات الامتلاء والتعقيد الملحمي للمحترفين",
         levelRange = 201..500,
@@ -207,30 +207,30 @@ enum class DifficultyTier(
 
         /**
          * Automatically alternates and varies between Easy, Medium, Hard, Expert, and Pro modes
-         * across levels to keep the player engaged (flow-state pacing), while stepping up to a
-         * strictly harder mode whenever [escalationSteps] > 0 (on retry / exhausted attempts).
+         * across levels with heightened challenge, while stepping up to a strictly harder mode
+         * whenever [escalationSteps] > 0 (on retry / exhausted attempts).
          */
         fun dynamicForLevel(levelNumber: Int, escalationSteps: Int = 0): DifficultyTier {
             val baseTierIndex = when {
-                levelNumber == 1 -> 0 // EASY
-                levelNumber == 2 -> 1 // MEDIUM
-                levelNumber == 3 -> 2 // HARD challenge wave
-                levelNumber == 4 -> 0 // EASY breather wave
-                levelNumber == 5 -> 1 // MEDIUM
-                levelNumber == 6 -> 2 // HARD
-                levelNumber == 7 -> 3 // EXPERT spike
-                levelNumber == 8 -> 1 // MEDIUM breather
+                levelNumber == 1 -> 1 // Starts right away with dense Medium-grade challenge
+                levelNumber == 2 -> 2 // HARD
+                levelNumber == 3 -> 3 // EXPERT challenge wave
+                levelNumber == 4 -> 1 // Dense breather wave
+                levelNumber == 5 -> 2 // HARD
+                levelNumber == 6 -> 3 // EXPERT
+                levelNumber == 7 -> 4 // PRO master wave
+                levelNumber == 8 -> 2 // HARD wave
                 else -> {
-                    // Dynamic 6-level wave cycle that alternates easy/medium/hard/expert/pro
+                    // Dynamic 6-level high-intensity wave cycle
                     val cyclePos = (levelNumber - 9) % 6
-                    val progressionBoost = ((levelNumber - 1) / 35).coerceIn(0, 2)
+                    val progressionBoost = ((levelNumber - 1) / 25).coerceIn(0, 2)
                     when (cyclePos) {
-                        0 -> (0 + progressionBoost).coerceAtMost(2) // Refreshing Easy/Medium wave
-                        1 -> (1 + progressionBoost).coerceAtMost(3) // Medium/Hard wave
-                        2 -> (2 + progressionBoost).coerceAtMost(4) // Hard/Expert wave
-                        3 -> (1 + progressionBoost).coerceAtMost(2) // Smooth Medium breather
-                        4 -> (3 + progressionBoost).coerceAtMost(4) // Expert/Pro challenge
-                        else -> (2 + progressionBoost).coerceAtMost(4) // Hard/Pro wave
+                        0 -> (1 + progressionBoost).coerceAtMost(3)
+                        1 -> (2 + progressionBoost).coerceAtMost(4)
+                        2 -> (3 + progressionBoost).coerceAtMost(4)
+                        3 -> (2 + progressionBoost).coerceAtMost(3)
+                        4 -> (4).coerceAtMost(4)
+                        else -> (3 + progressionBoost).coerceAtMost(4)
                     }
                 }
             }
@@ -258,6 +258,23 @@ enum class BoardShapeMask(val arabicName: String) {
     HOURGLASS("الساعة الرملية")
 }
 
+enum class ArrowTipStyle(
+    val id: String,
+    val arabicName: String,
+    val descriptionAr: String
+) {
+    CLASSIC_TRIANGLE("CLASSIC_TRIANGLE", "مثلث كلاسيكي", "سهم عريض متوازن ومريح للرؤية"),
+    STEALTH_CHEVRON("STEALTH_CHEVRON", "شفرة الشبح الحادة", "سهم انسيابي بحواف حادة مقعرة"),
+    DIAMOND_HEAD("DIAMOND_HEAD", "رأس الماسة", "رأس ماسي أنيق ومحدد بدقة"),
+    ROUNDED_SHIELD("ROUNDED_SHIELD", "درع انسيابي", "سهم ناعم مقوّس مريح للعين"),
+    HARPOON_BARB("HARPOON_BARB", "خطاف بارز", "رأس رمحي بجناحين بارزين");
+
+    companion object {
+        fun fromId(id: String): ArrowTipStyle =
+            entries.firstOrNull { it.id.equals(id, ignoreCase = true) } ?: CLASSIC_TRIANGLE
+    }
+}
+
 enum class AppThemeMode(
     val id: String,
     val arabicLabel: String
@@ -272,7 +289,7 @@ enum class AppThemeMode(
     }
 }
 
-enum class BoardThemePalette(
+data class BoardThemePalette(
     val id: String,
     val arabicName: String,
     val boardBackgroundHex: Long,
@@ -282,58 +299,96 @@ enum class BoardThemePalette(
     val secondaryArrowHex: Long,
     val highlightArrowHex: Long,
     val blockedArrowHex: Long,
-    val isDark: Boolean
+    val isDark: Boolean = false
 ) {
-    AMAZE_CLASSIC(
-        id = "amaze_classic",
-        arabicName = "كلاسيكي دافئ (Amaze GO)",
-        boardBackgroundHex = 0xFFFBF5EA,
-        cardSurfaceHex = 0xFFFFFBF4,
-        dotColorHex = 0xFFD7C6B0,
-        primaryArrowHex = 0xFF53351A,
-        secondaryArrowHex = 0xFF6B4624,
-        highlightArrowHex = 0xFFF3A833,
-        blockedArrowHex = 0xFFE53935,
-        isDark = false
-    ),
-    OBSIDIAN_NIGHT(
-        id = "obsidian_night",
-        arabicName = "ليلي فاخر (Obsidian)",
-        boardBackgroundHex = 0xFF10141D,
-        cardSurfaceHex = 0xFF1C2331,
-        dotColorHex = 0xFF3E4C66,
-        primaryArrowHex = 0xFFFDF8F0,
-        secondaryArrowHex = 0xFF9EC5FE,
-        highlightArrowHex = 0xFFFFCA28,
-        blockedArrowHex = 0xFFFF5252,
-        isDark = true
-    ),
-    EMERALD_ZEN(
-        id = "emerald_zen",
-        arabicName = "زمردي هادئ (Zen)",
-        boardBackgroundHex = 0xFFF1F7F3,
-        cardSurfaceHex = 0xFFFFFFFF,
-        dotColorHex = 0xFFB8CFC1,
-        primaryArrowHex = 0xFF1B4332,
-        secondaryArrowHex = 0xFF2D6A4F,
-        highlightArrowHex = 0xFFF4A261,
-        blockedArrowHex = 0xFFD62828,
-        isDark = false
-    ),
-    SANDSTONE_GOLD(
-        id = "sandstone_gold",
-        arabicName = "رمال الصحراء الذهبية",
-        boardBackgroundHex = 0xFFF6ECE0,
-        cardSurfaceHex = 0xFFFCF7F1,
-        dotColorHex = 0xFFCEB89E,
-        primaryArrowHex = 0xFF3E2723,
-        secondaryArrowHex = 0xFF5D4037,
-        highlightArrowHex = 0xFFFF8F00,
-        blockedArrowHex = 0xFFC62828,
-        isDark = false
-    );
-
     companion object {
+        val AMAZE_CLASSIC = BoardThemePalette(
+            id = "amaze_classic",
+            arabicName = "النمط الكلاسيكي الافتراضي",
+            boardBackgroundHex = 0xFFFAF4EB,
+            cardSurfaceHex = 0xFFFFFBF4,
+            dotColorHex = 0xFFC2B29D,
+            primaryArrowHex = 0xFF332211,
+            secondaryArrowHex = 0xFF332211,
+            highlightArrowHex = 0xFFF5A623,
+            blockedArrowHex = 0xFFE53935,
+            isDark = false
+        )
+
+        val OBSIDIAN_NIGHT = BoardThemePalette(
+            id = "obsidian_night",
+            arabicName = "ليلي فاخر نيون",
+            boardBackgroundHex = 0xFF10141D,
+            cardSurfaceHex = 0xFF1C2331,
+            dotColorHex = 0xFF64748B,
+            primaryArrowHex = 0xFFFDF8F0,
+            secondaryArrowHex = 0xFF9EC5FE,
+            highlightArrowHex = 0xFFFFCA28,
+            blockedArrowHex = 0xFFFF5252,
+            isDark = true
+        )
+
+        val EMERALD_ZEN = BoardThemePalette(
+            id = "emerald_zen",
+            arabicName = "زمردي هادئ",
+            boardBackgroundHex = 0xFFF1F7F3,
+            cardSurfaceHex = 0xFFFFFFFF,
+            dotColorHex = 0xFF52796F,
+            primaryArrowHex = 0xFF1B4332,
+            secondaryArrowHex = 0xFF2D6A4F,
+            highlightArrowHex = 0xFFF4A261,
+            blockedArrowHex = 0xFFD62828,
+            isDark = false
+        )
+
+        val SANDSTONE_GOLD = BoardThemePalette(
+            id = "sandstone_gold",
+            arabicName = "رمال الصحراء الذهبية",
+            boardBackgroundHex = 0xFFF6ECE0,
+            cardSurfaceHex = 0xFFFCF7F1,
+            dotColorHex = 0xFF8D6E63,
+            primaryArrowHex = 0xFF3E2723,
+            secondaryArrowHex = 0xFF5D4037,
+            highlightArrowHex = 0xFFFF8F00,
+            blockedArrowHex = 0xFFC62828,
+            isDark = false
+        )
+
+        val MONOCHROME_UNIFIED = BoardThemePalette(
+            id = "monochrome_unified",
+            arabicName = "لون موحد أنيق",
+            boardBackgroundHex = 0xFFF8FAFC,
+            cardSurfaceHex = 0xFFFFFFFF,
+            dotColorHex = 0xFF94A3B8,
+            primaryArrowHex = 0xFF1E293B,
+            secondaryArrowHex = 0xFF1E293B,
+            highlightArrowHex = 0xFFF59E0B,
+            blockedArrowHex = 0xFFDC2626,
+            isDark = false
+        )
+
+        val OCEAN_SAPPHIRE = BoardThemePalette(
+            id = "ocean_sapphire",
+            arabicName = "أزرق ياقوتي بحري",
+            boardBackgroundHex = 0xFFF0F5FA,
+            cardSurfaceHex = 0xFFFFFFFF,
+            dotColorHex = 0xFF4A6984,
+            primaryArrowHex = 0xFF0F3460,
+            secondaryArrowHex = 0xFF16213E,
+            highlightArrowHex = 0xFF00ADB5,
+            blockedArrowHex = 0xFFE94560,
+            isDark = false
+        )
+
+        val entries: List<BoardThemePalette> = listOf(
+            AMAZE_CLASSIC,
+            OBSIDIAN_NIGHT,
+            EMERALD_ZEN,
+            SANDSTONE_GOLD,
+            MONOCHROME_UNIFIED,
+            OCEAN_SAPPHIRE
+        )
+
         fun fromId(id: String): BoardThemePalette =
             entries.firstOrNull { it.id == id } ?: AMAZE_CLASSIC
 
@@ -343,15 +398,113 @@ enum class BoardThemePalette(
             isSystemDark: Boolean
         ): BoardThemePalette {
             val base = fromId(selectedThemeId)
-            val shouldUseDark = when (themeMode) {
+            val isAppDark = when (themeMode) {
                 AppThemeMode.DARK -> true
                 AppThemeMode.LIGHT -> false
                 AppThemeMode.SYSTEM -> isSystemDark
             }
-            return if (shouldUseDark) {
-                OBSIDIAN_NIGHT
+
+            return if (isAppDark) {
+                when (base.id) {
+                    MONOCHROME_UNIFIED.id -> base.copy(
+                        isDark = true,
+                        boardBackgroundHex = 0xFF10141D,
+                        cardSurfaceHex = 0xFF1C2331,
+                        primaryArrowHex = 0xFFF8FAFC,
+                        secondaryArrowHex = 0xFFF8FAFC,
+                        dotColorHex = 0xFF94A3B8,
+                        highlightArrowHex = 0xFFFFD166,
+                        blockedArrowHex = 0xFFFF5252
+                    )
+                    AMAZE_CLASSIC.id -> base.copy(
+                        isDark = true,
+                        boardBackgroundHex = 0xFF10141D,
+                        cardSurfaceHex = 0xFF1C2331,
+                        primaryArrowHex = 0xFFE2E8F0,
+                        secondaryArrowHex = 0xFFE2E8F0,
+                        dotColorHex = 0xFF64748B,
+                        highlightArrowHex = 0xFFFFD166,
+                        blockedArrowHex = 0xFFFF5252
+                    )
+                    EMERALD_ZEN.id -> base.copy(
+                        isDark = true,
+                        boardBackgroundHex = 0xFF10141D,
+                        cardSurfaceHex = 0xFF1C2331,
+                        primaryArrowHex = 0xFF74C69D,
+                        secondaryArrowHex = 0xFF52B788,
+                        dotColorHex = 0xFF52796F,
+                        highlightArrowHex = 0xFFFFB703,
+                        blockedArrowHex = 0xFFFF5252
+                    )
+                    SANDSTONE_GOLD.id -> base.copy(
+                        isDark = true,
+                        boardBackgroundHex = 0xFF10141D,
+                        cardSurfaceHex = 0xFF1C2331,
+                        primaryArrowHex = 0xFFFFD54F,
+                        secondaryArrowHex = 0xFFFFB300,
+                        dotColorHex = 0xFF8D6E63,
+                        highlightArrowHex = 0xFFFF6F00,
+                        blockedArrowHex = 0xFFFF5252
+                    )
+                    OCEAN_SAPPHIRE.id -> base.copy(
+                        isDark = true,
+                        boardBackgroundHex = 0xFF10141D,
+                        cardSurfaceHex = 0xFF1C2331,
+                        primaryArrowHex = 0xFF38BDF8,
+                        secondaryArrowHex = 0xFF60A5FA,
+                        dotColorHex = 0xFF3B82F6,
+                        highlightArrowHex = 0xFF22D3EE,
+                        blockedArrowHex = 0xFFFF5252
+                    )
+                    else -> base.copy(
+                        isDark = true,
+                        boardBackgroundHex = 0xFF10141D,
+                        cardSurfaceHex = 0xFF1C2331,
+                        primaryArrowHex = 0xFFFDF8F0,
+                        secondaryArrowHex = 0xFF9EC5FE,
+                        dotColorHex = 0xFF64748B,
+                        highlightArrowHex = 0xFFFFCA28,
+                        blockedArrowHex = 0xFFFF5252
+                    )
+                }
             } else {
-                if (base.isDark) AMAZE_CLASSIC else base
+                when (base.id) {
+                    MONOCHROME_UNIFIED.id -> base.copy(
+                        isDark = false,
+                        boardBackgroundHex = 0xFFFBF5EA,
+                        cardSurfaceHex = 0xFFFFFBF4,
+                        primaryArrowHex = 0xFF1E293B,
+                        secondaryArrowHex = 0xFF1E293B,
+                        dotColorHex = 0xFF94A3B8,
+                        highlightArrowHex = 0xFFF59E0B,
+                        blockedArrowHex = 0xFFDC2626
+                    )
+                    OBSIDIAN_NIGHT.id -> base.copy(
+                        isDark = false,
+                        boardBackgroundHex = 0xFFFBF5EA,
+                        cardSurfaceHex = 0xFFFFFBF4,
+                        primaryArrowHex = 0xFF1E293B,
+                        secondaryArrowHex = 0xFF334155,
+                        dotColorHex = 0xFF64748B,
+                        highlightArrowHex = 0xFF0284C7,
+                        blockedArrowHex = 0xFFDC2626
+                    )
+                    AMAZE_CLASSIC.id -> base.copy(
+                        isDark = false,
+                        boardBackgroundHex = 0xFFFAF4EB,
+                        cardSurfaceHex = 0xFFFFFBF4,
+                        primaryArrowHex = 0xFF332211,
+                        secondaryArrowHex = 0xFF422E1A,
+                        highlightArrowHex = 0xFFF5A623,
+                        dotColorHex = 0xFFC2B29D,
+                        blockedArrowHex = 0xFFE53935
+                    )
+                    else -> base.copy(
+                        isDark = false,
+                        boardBackgroundHex = 0xFFFBF5EA,
+                        cardSurfaceHex = 0xFFFFFBF4
+                    )
+                }
             }
         }
     }

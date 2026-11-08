@@ -123,19 +123,19 @@ object SmartLevelGenerator {
         escalationSteps: Int
     ): Pair<Int, Int> {
         val basePair = when (tier) {
-            DifficultyTier.EASY -> 9 to 13
-            DifficultyTier.MEDIUM -> 11 to 17
-            DifficultyTier.HARD -> 14 to 21
-            DifficultyTier.EXPERT -> 17 to 25
-            DifficultyTier.PRO -> 20 to 30
+            DifficultyTier.EASY -> 14 to 21
+            DifficultyTier.MEDIUM -> 17 to 25
+            DifficultyTier.HARD -> 19 to 29
+            DifficultyTier.EXPERT -> 21 to 32
+            DifficultyTier.PRO -> 24 to 36
         }
-        val levelBonusW = ((levelNumber - 1) / 25).coerceIn(0, 4)
-        val levelBonusH = ((levelNumber - 1) / 20).coerceIn(0, 6)
+        val levelBonusW = ((levelNumber - 1) / 20).coerceIn(0, 4)
+        val levelBonusH = ((levelNumber - 1) / 15).coerceIn(0, 6)
         val escBonusW = escalationSteps * 2
         val escBonusH = escalationSteps * 3
 
-        val finalW = (basePair.first + levelBonusW + escBonusW).coerceIn(9, 24)
-        val finalH = (basePair.second + levelBonusH + escBonusH).coerceIn(13, 36)
+        val finalW = (basePair.first + levelBonusW + escBonusW).coerceIn(14, 26)
+        val finalH = (basePair.second + levelBonusH + escBonusH).coerceIn(21, 38)
         return finalW to finalH
     }
 
@@ -178,18 +178,18 @@ object SmartLevelGenerator {
                 val inside = when (shapeMask) {
                     BoardShapeMask.FULL_MATRIX -> true
                     BoardShapeMask.CLASSIC_TOWER -> {
-                        val cutoutTopLeft = (y < height / 6 && x < width / 5)
-                        val cutoutTopRight = (y < height / 6 && x >= width - width / 5)
+                        val cutoutTopLeft = (y < height / 10 && x < width / 8)
+                        val cutoutTopRight = (y < height / 10 && x >= width - width / 8)
                         !cutoutTopLeft && !cutoutTopRight
                     }
                     BoardShapeMask.TWIN_PILLARS -> {
-                        val isBridge = y in (height / 5)..(height * 4 / 5)
+                        val isBridge = y in (height / 8)..(height * 7 / 8)
                         val isCenterSplit = (x == width / 2) && !isBridge
                         !isCenterSplit
                     }
-                    BoardShapeMask.STEPPED_CITADEL -> (nx * 0.70f + ny * 0.60f) <= 1.18f
-                    BoardShapeMask.LABYRINTH_CORE -> !(nx > 0.88f && ny > 0.88f)
-                    BoardShapeMask.HOURGLASS -> nx <= (1f - 0.22f * (1f - ny))
+                    BoardShapeMask.STEPPED_CITADEL -> (nx * 0.65f + ny * 0.55f) <= 1.24f
+                    BoardShapeMask.LABYRINTH_CORE -> !(nx > 0.94f && ny > 0.94f)
+                    BoardShapeMask.HOURGLASS -> nx <= (1f - 0.10f * (1f - ny))
                 }
 
                 if (inside) {
@@ -356,17 +356,23 @@ object SmartLevelGenerator {
             peeledArrows = peeledInSolveOrder
         )
 
+        val totalCount = peeledInSolveOrder.size
+        // Strictly only 2 or 3 arrows across the entire board get the golden accent, all the rest are pure unified black
+        val goldAccentIndices = when {
+            totalCount >= 12 -> setOf(0, totalCount / 2, (totalCount * 3) / 4)
+            totalCount >= 6 -> setOf(0, totalCount / 2)
+            totalCount >= 3 -> setOf(0)
+            else -> emptySet()
+        }
+
         var occupiedFinalCells = 0
-        val totalArrows = peeledInSolveOrder.size
         val finalArrows = peeledInSolveOrder.mapIndexed { idx, arrow ->
             occupiedFinalCells += arrow.cells.size
-            val isGoldenHighlight = (totalArrows >= 10) &&
-                (idx == 0 || idx == totalArrows / 3 || idx == (totalArrows * 2) / 3)
-            val hasSparkle = (totalArrows >= 12) && (idx == totalArrows / 2)
+            val isGold = idx in goldAccentIndices
             arrow.copy(
                 id = idx + 1,
-                colorAccentIndex = if (isGoldenHighlight) 1 else 0,
-                hasSparkleBadge = hasSparkle
+                colorAccentIndex = if (isGold) 1 else 0,
+                hasSparkleBadge = false
             )
         }
 
@@ -439,14 +445,18 @@ object SmartLevelGenerator {
                     var cy = y + dir.dy
                     var clearRay = true
                     var maxRecentPeelStepOnRay = 0
+                    var peeledCellsOnRay = 0
                     while (cx in 0 until gridWidth && cy in 0 until gridHeight) {
                         val rIdx = cy * gridWidth + cx
                         if (inRemaining[rIdx]) {
                             clearRay = false
                             break
                         }
-                        if (peeledAtStep[rIdx] > maxRecentPeelStepOnRay) {
-                            maxRecentPeelStepOnRay = peeledAtStep[rIdx]
+                        if (peeledAtStep[rIdx] > 0) {
+                            peeledCellsOnRay++
+                            if (peeledAtStep[rIdx] > maxRecentPeelStepOnRay) {
+                                maxRecentPeelStepOnRay = peeledAtStep[rIdx]
+                            }
                         }
                         cx += dir.dx
                         cy += dir.dy
@@ -455,14 +465,18 @@ object SmartLevelGenerator {
                     if (!clearRay) continue
 
                     // Score this candidate:
-                    // 1. Strongly prioritize degree-1 and degree-2 frontier tips so corners/leaves are consumed cleanly
-                    // 2. Strongly prioritize rays that pass through recently peeled cells (creates deep blocking waves!)
-                    var score = (4 - remDeg) * 32f
+                    // 1. Prioritize low-degree frontier tips so zero gaps remain
+                    // 2. After the first 2 starter arrows (`currentStep >= 2`), HEAVILY reward rays that pass
+                    //    through already-peeled arrows (`peeledCellsOnRay > 0`) and penalize unblocked perimeter
+                    //    arrows (`maxRecentPeelStepOnRay == 0`) so only 1–3 arrows are initially free!
+                    var score = (4 - remDeg) * 30f
                     if (maxRecentPeelStepOnRay > 0) {
                         val recency = (maxRecentPeelStepOnRay.toFloat() / currentStep.coerceAtLeast(1))
-                        score += 28f + recency * 24f
+                        score += 155f + recency * 65f + (peeledCellsOnRay.coerceAtMost(8) * 22f)
+                    } else if (currentStep >= 2) {
+                        score -= 135f
                     }
-                    score += rng.nextFloat() * 14f
+                    score += rng.nextFloat() * 10f
 
                     list.add(ExposedHeadCandidate(x, y, dir, score))
                 }
@@ -775,24 +789,15 @@ object SmartLevelGenerator {
         style: ArrowStyle,
         rng: Random
     ): Int {
-        // Keep arrows compact to medium-long so there are MANY closely-packed arrows per board!
-        val levelBonus = (levelNumber / 15).coerceAtMost(8)
-        return when {
-            levelNumber == 1 -> rng.nextInt(3, 6)
-            levelNumber == 2 -> rng.nextInt(3, 7)
-            levelNumber <= 5 -> when (style) {
-                ArrowStyle.SPIRAL -> rng.nextInt(6, 11)
-                ArrowStyle.SERPENTINE -> rng.nextInt(5, 9)
-                else -> rng.nextInt(3, 7)
-            }
-            else -> when (style) {
-                ArrowStyle.SPIRAL -> rng.nextInt(8 + levelBonus / 2, 16 + levelBonus)
-                ArrowStyle.SERPENTINE -> rng.nextInt(6 + levelBonus / 2, 13 + levelBonus)
-                ArrowStyle.BRACKET -> rng.nextInt(4, 9)
-                ArrowStyle.COMB_U -> rng.nextInt(4, 7)
-                ArrowStyle.HOOK -> rng.nextInt(3, 6)
-                ArrowStyle.STRAIGHT -> rng.nextInt(2, 5)
-            }
+        // Keep arrows compact & multi-turned (3 to 8 cells) so every grid packs 100–310+ closely-spaced
+        // interlocking arrows instead of a few long ones!
+        return when (style) {
+            ArrowStyle.SPIRAL -> rng.nextInt(5, 9)
+            ArrowStyle.SERPENTINE -> rng.nextInt(4, 8)
+            ArrowStyle.COMB_U -> rng.nextInt(4, 7)
+            ArrowStyle.BRACKET -> rng.nextInt(3, 6)
+            ArrowStyle.HOOK -> rng.nextInt(3, 5)
+            ArrowStyle.STRAIGHT -> rng.nextInt(2, 4)
         }
     }
 

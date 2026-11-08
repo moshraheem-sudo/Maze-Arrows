@@ -27,7 +27,7 @@ class GameRepository(private val dao: GameProgressDao) {
                     totalScore = 350,
                     totalStars = 0,
                     hintsBalance = 10,
-                    themeMode = "SYSTEM"
+                    themeMode = "LIGHT"
                 )
             )
             dao.upsertLevelProgress(
@@ -165,13 +165,55 @@ class GameRepository(private val dao: GameProgressDao) {
         return true
     }
 
+    suspend fun saveActiveLevelProgress(
+        levelNumber: Int,
+        remainingArrowIds: List<Int>,
+        remainingSeconds: Int,
+        elapsedSeconds: Int,
+        livesRemaining: Int
+    ) {
+        val existing = dao.getLevelProgress(levelNumber) ?: LevelProgressEntity(
+            levelNumber = levelNumber,
+            isUnlocked = true
+        )
+        dao.upsertLevelProgress(
+            existing.copy(
+                savedRemainingArrowIdsCsv = remainingArrowIds.joinToString(","),
+                savedRemainingSeconds = remainingSeconds,
+                savedElapsedSeconds = elapsedSeconds,
+                savedLivesRemaining = livesRemaining,
+                hasSavedProgress = remainingArrowIds.isNotEmpty(),
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun clearActiveLevelProgress(levelNumber: Int) {
+        val existing = dao.getLevelProgress(levelNumber) ?: return
+        dao.upsertLevelProgress(
+            existing.copy(
+                savedRemainingArrowIdsCsv = "",
+                savedRemainingSeconds = 0,
+                savedElapsedSeconds = 0,
+                savedLivesRemaining = 5,
+                hasSavedProgress = false
+            )
+        )
+    }
+
+    suspend fun getLevelProgress(levelNumber: Int): LevelProgressEntity? {
+        return dao.getLevelProgress(levelNumber)
+    }
+
     suspend fun updateSettings(
         soundEnabled: Boolean? = null,
         vibrationEnabled: Boolean? = null,
         musicEnabled: Boolean? = null,
         voiceEnabled: Boolean? = null,
         selectedThemeId: String? = null,
-        themeMode: String? = null
+        themeMode: String? = null,
+        arrowTipStyle: String? = null,
+        eyeProtectionMode: Boolean? = null
     ) {
         val profile = dao.getPlayerProfileOnce() ?: PlayerProfileEntity()
         dao.upsertPlayerProfile(
@@ -181,7 +223,9 @@ class GameRepository(private val dao: GameProgressDao) {
                 musicEnabled = musicEnabled ?: profile.musicEnabled,
                 voiceEnabled = voiceEnabled ?: profile.voiceEnabled,
                 selectedThemeId = selectedThemeId ?: profile.selectedThemeId,
-                themeMode = themeMode ?: profile.themeMode
+                themeMode = themeMode ?: profile.themeMode,
+                arrowTipStyle = arrowTipStyle ?: profile.arrowTipStyle,
+                eyeProtectionMode = eyeProtectionMode ?: profile.eyeProtectionMode
             )
         )
     }
