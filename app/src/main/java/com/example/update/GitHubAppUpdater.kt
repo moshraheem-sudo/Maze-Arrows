@@ -1,13 +1,22 @@
 package com.example.update
 
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.BuildConfig
+import com.example.MainActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -23,8 +32,8 @@ import java.net.URL
 import java.util.Locale
 
 data class GitHubUpdateCheckState(
-    val installedVersionName: String = "1.20",
-    val installedVersionCode: Long = 120L,
+    val installedVersionName: String = "1.40",
+    val installedVersionCode: Long = 140L,
     val remoteVersionName: String? = null,
     val isChecking: Boolean = false,
     val isDownloading: Boolean = false,
@@ -32,7 +41,7 @@ data class GitHubUpdateCheckState(
     val downloadedMegabytes: Float = 0f,
     val totalMegabytes: Float = 0f,
     val isUpdateAvailable: Boolean = false,
-    val comparisonSummaryAr: String = "الإصدار الحالي المثبّت: v1.20 • اضغط «فحص الإصدار» للبحث في رابط GitHub عن تحديث أحدث",
+    val comparisonSummaryAr: String = "الإصدار الحالي المثبّت: v1.40 • اضغط «فحص الإصدار» للبحث في رابط GitHub عن تحديث أحدث",
     val releaseNotesAr: String? = null,
     val downloadUrl: String = GitHubAppUpdater.GITHUB_REPO_URL,
     val hasDirectApkAsset: Boolean = false,
@@ -634,6 +643,68 @@ object GitHubAppUpdater {
             true
         } catch (_: Exception) {
             false
+        }
+    }
+
+    const val CHANNEL_ID = "maze_arrows_updates"
+    const val NOTIFICATION_ID = 1301
+
+    fun createNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "تحديثات Maze Arrows"
+            val descriptionText = "إشعارات توفر الإصدارات والتحديثات الجديدة للعبة"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+                enableVibration(true)
+            }
+            val notificationManager: NotificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    fun postUpdateNotification(
+        context: Context,
+        versionName: String = "1.40",
+        summaryText: String = "يتوفر الإصدار الأحدث 1.40 مع تحسينات مميزة للواجهة واللعب! اضغط لتثبيت التحديث الآن."
+    ) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    return
+                }
+            }
+
+            createNotificationChannel(context)
+
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("OPEN_UPDATER", true)
+            }
+            val pendingIntent: PendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle("🎯 يتوفر تحديث جديد للتطبيق (الإصدار $versionName)")
+                .setContentText(summaryText)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(summaryText))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+
+            val notificationManager = NotificationManagerCompat.from(context)
+            notificationManager.notify(NOTIFICATION_ID, builder.build())
+        } catch (_: Exception) {
         }
     }
 }

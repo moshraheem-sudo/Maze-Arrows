@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.amazearrows.erkjfy"
     minSdk = 24
     targetSdk = 36
-    versionCode = 120
-    versionName = "1.20"
+    versionCode = 140
+    versionName = "1.40"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

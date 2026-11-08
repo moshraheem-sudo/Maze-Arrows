@@ -40,8 +40,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lightbulb
@@ -120,6 +122,7 @@ import com.example.update.GitHubAppUpdater
 import com.example.update.GitHubUpdateCheckState
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 private fun formatTimerMmSs(seconds: Int): String {
@@ -147,14 +150,15 @@ fun AmazeGameplayTopBar(
 ) {
     val barBgColor = if (themePalette.isDark) Color(0xFF1D2331) else Color(0xFFEDE0CA)
     val iconSurfaceColor = if (themePalette.isDark) Color(0xFF283042) else Color(0xFFF7EFE2)
+    val buttonBorderColor = if (themePalette.isDark) Color(0xFF3F4C66) else Color(0xFFDAC7AC)
     val textColor = if (themePalette.isDark) Color(0xFFE8DCCB) else Color(0xFF5A3B1E)
     val titleColor = if (themePalette.isDark) Color(0xFFFFB74D) else Color(0xFF8C4A15)
     val diffBadgeColor = Color(difficulty.badgeColorHex)
 
     Surface(
         color = barBgColor,
-        shape = RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp),
-        shadowElevation = 3.dp,
+        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+        shadowElevation = 4.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -164,12 +168,13 @@ fun AmazeGameplayTopBar(
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Pinned App Name at Top-Center (تثبيت اسم التطبيق Maze Arrows في أعلى المنتصف)
+            // 1. Pinned App Title
             Text(
                 text = "Maze Arrows",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 19.sp
+                    fontSize = 18.sp,
+                    letterSpacing = 0.5.sp
                 ),
                 maxLines = 1,
                 color = titleColor,
@@ -179,19 +184,21 @@ fun AmazeGameplayTopBar(
                     .padding(bottom = 6.dp)
             )
 
-            // 2. Second Row: Back Button + Level/Mode Info + Spaced Shop/Theme/Settings Icons
+            // 2. Toolbar Row: Back button (Start) + Level Capsule (Center) + Action Group (End)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Back Button
+                // Back Button (Start)
                 Surface(
                     onClick = onBackClick,
                     shape = CircleShape,
                     color = iconSurfaceColor,
+                    border = BorderStroke(1.dp, buttonBorderColor),
+                    shadowElevation = 1.dp,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(38.dp)
                         .testTag("back_to_menu_button")
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -199,83 +206,95 @@ fun AmazeGameplayTopBar(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "رجوع",
                             tint = textColor,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                // Center: Level Name + Compact Difficulty Badge (never clips or disappears!)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 4.dp)
+                // Center: Level & Difficulty Mode Unified Capsule
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = iconSurfaceColor,
+                    border = BorderStroke(1.dp, buttonBorderColor),
+                    shadowElevation = 1.dp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 ) {
-                    Text(
-                        text = if (isCustomLevel) "مخصص" else "المستوى $levelNumber",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 14.sp
-                        ),
-                        maxLines = 1,
-                        softWrap = false,
-                        color = textColor
-                    )
-
-                    Spacer(modifier = Modifier.width(5.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = diffBadgeColor.copy(alpha = if (themePalette.isDark) 0.32f else 0.16f),
-                        modifier = Modifier.border(
-                            width = 1.dp,
-                            color = if (themePalette.isDark) Color(0xFFFFCC80).copy(alpha = 0.65f) else diffBadgeColor.copy(alpha = 0.45f),
-                            shape = RoundedCornerShape(50)
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = if (isModeLocked) "🔒${difficulty.arabicLabel}" else difficulty.arabicLabel,
-                            style = MaterialTheme.typography.labelLarge.copy(
+                            text = if (isCustomLevel) "مخصص" else "المستوى $levelNumber",
+                            style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp
+                                fontSize = 14.sp
                             ),
                             maxLines = 1,
                             softWrap = false,
-                            color = if (themePalette.isDark) Color(0xFFFFE082) else diffBadgeColor,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            color = textColor
                         )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = diffBadgeColor.copy(alpha = if (themePalette.isDark) 0.35f else 0.18f),
+                            border = BorderStroke(
+                                1.dp,
+                                if (themePalette.isDark) Color(0xFFFFCC80).copy(alpha = 0.65f) else diffBadgeColor.copy(alpha = 0.55f)
+                            )
+                        ) {
+                            Text(
+                                text = if (isModeLocked) "🔒 ${difficulty.arabicLabel}" else difficulty.arabicLabel,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 11.sp
+                                ),
+                                maxLines = 1,
+                                softWrap = false,
+                                color = if (themePalette.isDark) Color(0xFFFFE082) else diffBadgeColor,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
+                            )
+                        }
                     }
                 }
 
-                // Side Actions (Shop + Theme + Settings)
+                // End Group: Points Shop + Palette + Settings with matched 38dp height and unified aesthetic
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Points Shop Button
                     Surface(
                         onClick = onShopClick,
-                        shape = RoundedCornerShape(50),
+                        shape = RoundedCornerShape(19.dp),
                         color = iconSurfaceColor,
-                        modifier = Modifier.testTag("gameplay_shop_button")
+                        border = BorderStroke(
+                            1.dp,
+                            if (themePalette.isDark) Color(0xFFD9A74A).copy(alpha = 0.55f) else Color(0xFFD9822B).copy(alpha = 0.45f)
+                        ),
+                        shadowElevation = 1.dp,
+                        modifier = Modifier
+                            .height(38.dp)
+                            .testTag("gameplay_shop_button")
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 9.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ShoppingCart,
                                 contentDescription = "متجر النقاط",
                                 tint = if (themePalette.isDark) Color(0xFFFFCA28) else Color(0xFFD9822B),
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                             Text(
                                 text = "$totalScore",
                                 style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 11.5.sp
                                 ),
                                 maxLines = 1,
                                 softWrap = false,
@@ -284,12 +303,15 @@ fun AmazeGameplayTopBar(
                         }
                     }
 
+                    // Theme Palette Button
                     Surface(
                         onClick = onThemeClick,
                         shape = CircleShape,
                         color = iconSurfaceColor,
+                        border = BorderStroke(1.dp, buttonBorderColor),
+                        shadowElevation = 1.dp,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .testTag("theme_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -297,17 +319,20 @@ fun AmazeGameplayTopBar(
                                 imageVector = Icons.Default.Palette,
                                 contentDescription = "تغيير المظهر",
                                 tint = textColor,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }
 
+                    // Settings Button
                     Surface(
                         onClick = onSettingsClick,
                         shape = CircleShape,
                         color = iconSurfaceColor,
+                        border = BorderStroke(1.dp, buttonBorderColor),
+                        shadowElevation = 1.dp,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .testTag("settings_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -315,7 +340,7 @@ fun AmazeGameplayTopBar(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "الإعدادات",
                                 tint = textColor,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }
@@ -564,21 +589,18 @@ fun AmazeFloatingToastBanner(
 @Composable
 fun AmazeGameplayBottomBar(
     canUndo: Boolean,
-    previewModeEnabled: Boolean,
+    zoomScale: Float = 1f,
     isAutoSolving: Boolean,
     themePalette: BoardThemePalette,
     onUndoClick: () -> Unit,
     onHintClick: () -> Unit,
-    onTogglePreviewMode: () -> Unit,
+    onZoomInClick: () -> Unit = {},
+    onZoomOutClick: () -> Unit = {},
+    onResetZoomClick: () -> Unit = {},
     onAutoSolveToggle: () -> Unit,
-    onResetZoomClick: () -> Unit,
-    pathInspectCooldownSeconds: Int = 0,
-    hintCooldownSeconds: Int = 0,
     autoSolveCooldownSeconds: Int = 0,
     freeHintsRemaining: Int = 3,
-    purchasedHintsRemaining: Int = 3,
-    freePathInspectsRemaining: Int = 3,
-    purchasedPathInspectsRemaining: Int = 3
+    purchasedHintsRemaining: Int = 3
 ) {
     val isDark = themePalette.isDark
     val cardBg = if (isDark) Color(0xFF20293C) else Color(0xFFF4E8D6)
@@ -596,18 +618,6 @@ fun AmazeGameplayBottomBar(
     val hintTint = when {
         freeHintsRemaining > 0 -> if (isDark) Color(0xFFFFD54F) else Color(0xFFC86D14)
         purchasedHintsRemaining > 0 -> if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD)
-        else -> if (isDark) Color(0xFF78909C) else Color(0xFFB0A495)
-    }
-
-    val pathLabel = when {
-        freePathInspectsRemaining > 0 -> "المسار ($freePathInspectsRemaining)"
-        purchasedPathInspectsRemaining > 0 -> "المسار (🛒$purchasedPathInspectsRemaining)"
-        else -> "المسار (0)"
-    }
-    val pathEnabled = freePathInspectsRemaining > 0 || purchasedPathInspectsRemaining > 0
-    val pathTint = when {
-        freePathInspectsRemaining > 0 -> if (isDark) Color(0xFF80D8FF) else contentTint
-        purchasedPathInspectsRemaining > 0 -> if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD)
         else -> if (isDark) Color(0xFF78909C) else Color(0xFFB0A495)
     }
 
@@ -654,16 +664,76 @@ fun AmazeGameplayBottomBar(
                 onClick = onHintClick
             )
 
-            BottomActionChip(
-                icon = Icons.Default.Visibility,
-                label = pathLabel,
-                enabled = pathEnabled,
-                tint = pathTint,
-                chipBg = chipBg,
-                chipBorder = chipBorder,
-                testTag = "preview_mode_button",
-                onClick = onTogglePreviewMode
-            )
+            // Zoom Controller (+ / - and percentage) replacing the old "المسار" button!
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(chipBg)
+                    .border(1.dp, chipBorder, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 5.dp, vertical = 3.dp)
+                    .testTag("bottom_zoom_controller")
+            ) {
+                Text(
+                    text = "${(zoomScale * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 10.sp
+                    ),
+                    color = contentTint,
+                    modifier = Modifier.clickable { onResetZoomClick() }
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Surface(
+                        onClick = onZoomOutClick,
+                        shape = CircleShape,
+                        color = if (isDark) Color(0xFF384666) else Color(0xFFDECDB4),
+                        border = BorderStroke(1.dp, chipBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier
+                            .size(28.dp)
+                            .testTag("zoom_out_button")
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Remove,
+                                contentDescription = "تصغير",
+                                tint = contentTint,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        onClick = onZoomInClick,
+                        shape = CircleShape,
+                        color = if (isDark) Color(0xFF384666) else Color(0xFFDECDB4),
+                        border = BorderStroke(1.dp, chipBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier
+                            .size(28.dp)
+                            .testTag("zoom_in_button")
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "تكبير",
+                                tint = contentTint,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
             BottomActionChip(
                 icon = if (isAutoSolving) Icons.Default.Close else Icons.Default.AutoAwesome,

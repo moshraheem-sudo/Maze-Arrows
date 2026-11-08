@@ -88,16 +88,28 @@ fun AmazeBoardCanvas(
     selectedPreviewArrowId: Int? = null,
     arrowTipStyle: ArrowTipStyle = ArrowTipStyle.CLASSIC_TRIANGLE,
     eyeProtectionMode: Boolean = false,
+    zoomScale: Float = 1f,
+    onZoomScaleChange: (Float) -> Unit = {},
     onArrowLongPressed: (Int) -> Unit = {},
     onArrowHoldReleased: (Int) -> Unit = {},
     onClearPreview: () -> Unit = {}
 ) {
-    var zoomScale by remember { mutableFloatStateOf(1f) }
+    var internalZoomScale by remember { mutableFloatStateOf(zoomScale) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
     val gestureScope = rememberCoroutineScope()
 
+    LaunchedEffect(zoomScale) {
+        if (internalZoomScale != zoomScale) {
+            internalZoomScale = zoomScale
+            if (zoomScale <= 1.0f) {
+                panOffset = Offset.Zero
+            }
+        }
+    }
+
     LaunchedEffect(zoomResetTrigger, level.levelNumber, level.seed) {
-        zoomScale = 1f
+        internalZoomScale = 1f
+        onZoomScaleChange(1f)
         panOffset = Offset.Zero
     }
 
@@ -179,8 +191,8 @@ fun AmazeBoardCanvas(
 
                     val centerX = cw / 2f
                     val centerY = ch / 2f
-                    val unzoomedX = (offset.x - centerX - panOffset.x) / zoomScale + centerX
-                    val unzoomedY = (offset.y - centerY - panOffset.y) / zoomScale + centerY
+                    val unzoomedX = (offset.x - centerX - panOffset.x) / internalZoomScale + centerX
+                    val unzoomedY = (offset.y - centerY - panOffset.y) / internalZoomScale + centerY
 
                     val paddingPx = min(cw, ch) * 0.025f
                     val availW = cw - paddingPx * 2f
@@ -255,10 +267,11 @@ fun AmazeBoardCanvas(
                         }
 
                         if (isTransformGesture) {
-                            val oldScale = zoomScale
+                            val oldScale = internalZoomScale
                             val newScale = (oldScale * zoomChange).coerceIn(0.50f, 3.8f)
                             val actualZoomRatio = newScale / oldScale
-                            zoomScale = newScale
+                            internalZoomScale = newScale
+                            onZoomScaleChange(newScale)
 
                             val center = Offset(size.width / 2f, size.height / 2f)
                             val centroid = event.calculateCentroid(useCurrent = false)
@@ -317,8 +330,8 @@ fun AmazeBoardCanvas(
                 withTransform({
                     translate(panOffset.x, panOffset.y)
                     scale(
-                        scaleX = zoomScale,
-                        scaleY = zoomScale,
+                        scaleX = internalZoomScale,
+                        scaleY = internalZoomScale,
                         pivot = Offset(size.width / 2f, size.height / 2f)
                     )
                 }) {
@@ -623,86 +636,6 @@ fun AmazeBoardCanvas(
                     }
                 }
 
-            }
-        }
-
-        // Floating Quick Zoom & Pan Helper Pill (تقريب / تبعيد / توسيط بلمسة واحدة)
-        val zoomPillBg = if (themePalette.isDark) Color(0xFF28334A) else Color(0xFFEDE0CA).copy(alpha = 0.94f)
-        val zoomPillText = if (themePalette.isDark) Color(0xFFFFFFFF) else Color(0xFF3E240E)
-        val zoomPillBorder = if (themePalette.isDark) Color(0xFF47587A) else Color(0xFFC8B499)
-
-        Surface(
-            shape = RoundedCornerShape(50),
-            color = zoomPillBg,
-            shadowElevation = 3.dp,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 12.dp, bottom = 8.dp)
-                .border(1.dp, zoomPillBorder, RoundedCornerShape(50))
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clipToBounds()
-                        .clickable {
-                            zoomScale = (zoomScale + 0.25f).coerceAtMost(3.6f)
-                        }
-                        .testTag("zoom_in_button")
-                ) {
-                    Text(
-                        text = "+",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        ),
-                        color = zoomPillText
-                    )
-                }
-
-                Text(
-                    text = "${(zoomScale * 100).roundToInt()}%",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
-                    ),
-                    color = zoomPillText,
-                    modifier = Modifier
-                        .clickable {
-                            zoomScale = 1f
-                            panOffset = Offset.Zero
-                        }
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
-                )
-
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clipToBounds()
-                        .clickable {
-                            val nextZoom = (zoomScale - 0.25f).coerceAtLeast(0.60f)
-                            zoomScale = nextZoom
-                            if (nextZoom <= 1.0f) {
-                                panOffset = Offset.Zero
-                            }
-                        }
-                        .testTag("zoom_out_button")
-                ) {
-                    Text(
-                        text = "−",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        ),
-                        color = zoomPillText
-                    )
-                }
             }
         }
     }

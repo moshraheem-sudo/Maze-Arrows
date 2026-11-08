@@ -1,11 +1,17 @@
 package com.example
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +53,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         SecurityShieldManager.applyAntiTapjacking(this)
+        if (intent?.getBooleanExtra("OPEN_UPDATER", false) == true) {
+            mainViewModel.setShowSettingsModal(true)
+        }
         enableEdgeToEdge()
         setContent {
             AmazeArrowsApp(viewModel = mainViewModel)
@@ -114,6 +123,26 @@ fun AmazeArrowsApp(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             viewModel.onActivityPaused()
+        }
+    }
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.checkGitHubVersionComparison()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                viewModel.checkGitHubVersionComparison()
+            } else {
+                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            viewModel.checkGitHubVersionComparison()
         }
     }
 

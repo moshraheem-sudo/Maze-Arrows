@@ -1,6 +1,7 @@
 package com.example.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.audio.SoundAndHapticManager
@@ -1005,6 +1006,13 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
             val result = GitHubAppUpdater.checkAndCompareWithGitHub(getApplication())
             _uiState.update {
                 it.copy(updateCheckState = result)
+            }
+            if (result.isUpdateAvailable) {
+                GitHubAppUpdater.postUpdateNotification(
+                    context = getApplication(),
+                    versionName = result.remoteVersionName ?: "1.40",
+                    summaryText = "يتوفر الإصدار الأحدث v${result.remoteVersionName ?: "1.40"} على GitHub! اضغط لتثبيت التحديث الآن."
+                )
             }
         }
     }

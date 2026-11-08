@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -368,8 +369,6 @@ fun MainMenuScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             // 4. Primary Play CTA
-            val playModeLabel = lockedTier?.arabicLabel
-                ?: DifficultyTier.progressiveSubtitle(profile.highestUnlockedLevel)
             Button(
                 onClick = { onContinueLevel(profile.highestUnlockedLevel) },
                 shape = RoundedCornerShape(18.dp),
@@ -396,25 +395,10 @@ fun MainMenuScreen(
                     Text(
                         text = "العب المستوى ${profile.highestUnlockedLevel}",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 17.sp
                         )
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = Color.Black.copy(alpha = 0.22f)
-                    ) {
-                        Text(
-                            text = playModeLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.5.sp
-                            ),
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
                 }
             }
 
@@ -770,43 +754,7 @@ fun MainMenuScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Security & Privacy Shield Guarantee Banner (At the very bottom as requested)
-            Surface(
-                onClick = onOpenSecurityShield,
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF10B981).copy(alpha = if (themePalette.isDark) 0.16f else 0.10f),
-                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("menu_security_badge")
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = null,
-                        tint = Color(0xFF10B981),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "🛡️ درع أمان وحديدي: منع سحب أي بيانات من الهاتف بنسبة 100%",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.5.sp
-                        ),
-                        color = if (themePalette.isDark) Color(0xFF34D399) else Color(0xFF047857),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -1456,6 +1404,7 @@ fun GameplayScreen(
 
     val level = uiState.activeLevel ?: return
     val bgColor = Color(themePalette.boardBackgroundHex)
+    var boardZoomScale by remember { mutableFloatStateOf(1f) }
 
     Column(
         modifier = Modifier
@@ -1512,6 +1461,8 @@ fun GameplayScreen(
                 selectedPreviewArrowId = uiState.selectedPreviewArrowId,
                 arrowTipStyle = ArrowTipStyle.fromId(profile.arrowTipStyle),
                 eyeProtectionMode = profile.eyeProtectionMode,
+                zoomScale = boardZoomScale,
+                onZoomScaleChange = { boardZoomScale = it },
                 onArrowLongPressed = onArrowLongPressed,
                 onArrowHoldReleased = onArrowHoldReleased,
                 onClearPreview = onClearPreview
@@ -1548,21 +1499,21 @@ fun GameplayScreen(
         // 4. Bottom Action Dock
         AmazeGameplayBottomBar(
             canUndo = uiState.undoStack.isNotEmpty(),
-            previewModeEnabled = uiState.previewModeEnabled,
+            zoomScale = boardZoomScale,
             isAutoSolving = uiState.isAutoSolving,
             themePalette = themePalette,
             onUndoClick = onUndoClick,
             onHintClick = onHintClick,
-            onTogglePreviewMode = onTogglePreviewMode,
+            onZoomInClick = { boardZoomScale = (boardZoomScale + 0.25f).coerceAtMost(3.6f) },
+            onZoomOutClick = { boardZoomScale = (boardZoomScale - 0.25f).coerceAtLeast(0.60f) },
+            onResetZoomClick = {
+                boardZoomScale = 1f
+                onResetZoomClick()
+            },
             onAutoSolveToggle = onAutoSolveToggle,
-            onResetZoomClick = onResetZoomClick,
-            pathInspectCooldownSeconds = uiState.pathInspectCooldownSeconds,
-            hintCooldownSeconds = uiState.hintCooldownSeconds,
             autoSolveCooldownSeconds = uiState.autoSolveCooldownSeconds,
             freeHintsRemaining = uiState.freeHintsRemaining,
-            purchasedHintsRemaining = uiState.purchasedHintsRemaining,
-            freePathInspectsRemaining = uiState.freePathInspectsRemaining,
-            purchasedPathInspectsRemaining = uiState.purchasedPathInspectsRemaining
+            purchasedHintsRemaining = uiState.purchasedHintsRemaining
         )
     }
 
