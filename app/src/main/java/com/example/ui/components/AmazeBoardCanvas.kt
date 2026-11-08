@@ -469,7 +469,10 @@ fun AmazeBoardCanvas(
                                     previewArrow
                                 )
 
-                                val startLaserOffset = Offset(headX, headY)
+                                val tipAdvance = cellStep * 0.35f
+                                val laserStartX = headX + dir.dx * tipAdvance
+                                val laserStartY = headY + dir.dy * tipAdvance
+                                val startLaserOffset = Offset(laserStartX, laserStartY)
                                 val endLaserOffset = Offset(fullLaserEndX, fullLaserEndY)
 
                                 // Layer 1: Ambient Red Laser Bloom / Glow (هالة ليزرية رقيقة وناعمة)
@@ -477,7 +480,7 @@ fun AmazeBoardCanvas(
                                     color = Color(0xFFFF1744).copy(alpha = 0.22f * laserPulseAlpha),
                                     start = startLaserOffset,
                                     end = endLaserOffset,
-                                    strokeWidth = 3.2f,
+                                    strokeWidth = 3.0f,
                                     cap = StrokeCap.Round
                                 )
 
@@ -512,20 +515,20 @@ fun AmazeBoardCanvas(
                                     )
                                 )
 
-                                // Laser Emitter Node at Arrow Head (مخرج الليزر عند رأس السهم بدقة)
+                                // Laser Emitter Node at Arrow Head Tip
                                 drawCircle(
                                     color = Color(0xFFFF1744).copy(alpha = 0.35f * laserPulseAlpha),
-                                    radius = 4.8f,
+                                    radius = 3.5f,
                                     center = startLaserOffset
                                 )
                                 drawCircle(
                                     color = Color(0xFFFF0D36),
-                                    radius = 3.0f,
+                                    radius = 2.2f,
                                     center = startLaserOffset
                                 )
                                 drawCircle(
                                     color = Color.White,
-                                    radius = 1.2f,
+                                    radius = 1.0f,
                                     center = startLaserOffset
                                 )
 
@@ -815,19 +818,6 @@ private fun DrawScope.finishDrawingArrowPaths(
     pulseFraction: Float,
     arrowTipStyle: ArrowTipStyle = ArrowTipStyle.CLASSIC_TRIANGLE
 ) {
-    if (isHighlighted) {
-        val glowStroke = strokeWidth * (1.75f + 0.30f * pulseFraction)
-        drawPath(
-            path = strokePath,
-            color = color.copy(alpha = 0.24f + 0.14f * pulseFraction),
-            style = Stroke(
-                width = glowStroke,
-                cap = StrokeCap.Round,
-                join = StrokeJoin.Round
-            )
-        )
-    }
-
     drawPath(
         path = strokePath,
         color = color,

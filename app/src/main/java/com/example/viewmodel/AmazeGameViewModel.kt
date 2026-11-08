@@ -73,6 +73,10 @@ data class GameplayUiState(
     val selectedPreviewArrowId: Int? = null,
     val previewModeEnabled: Boolean = false,
     val hintedArrowId: Int? = null,
+    val freeHintsRemaining: Int = 3,
+    val purchasedHintsRemaining: Int = 3,
+    val freePathInspectsRemaining: Int = 3,
+    val purchasedPathInspectsRemaining: Int = 3,
     val pathInspectCooldownSeconds: Int = 0,
     val hintCooldownSeconds: Int = 0,
     val autoSolveCooldownSeconds: Int = 0,
@@ -214,20 +218,41 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         val level = state.activeLevel ?: return
         if (state.remainingArrows.isEmpty() || state.isVictory || state.isGameOver) return
 
-        if (state.pathInspectCooldownSeconds > 0) {
-            val mins = state.pathInspectCooldownSeconds / 60
-            val secs = state.pathInspectCooldownSeconds % 60
+        if (state.freePathInspectsRemaining > 0) {
+            _uiState.update { it.copy(freePathInspectsRemaining = it.freePathInspectsRemaining - 1) }
+            executePathInspectAction(level, state)
+        } else if (state.purchasedPathInspectsRemaining > 0) {
+            viewModelScope.launch {
+                val profile = playerProfile.value
+                val inspectCost = 35
+                if (profile.totalScore < inspectCost) {
+                    _uiState.update {
+                        it.copy(
+                            showShopModal = true,
+                            shopFeedbackMessage = "تحتاج إلى $inspectCost نقطة لشراء فحص المسار • رصيدك الحالي: ${profile.totalScore} 🛒 (متبقي ${state.purchasedPathInspectsRemaining} مشتريات متاحة لهذا المستوى)"
+                        )
+                    }
+                    return@launch
+                }
+                val success = withContext(Dispatchers.IO) {
+                    repository.purchaseInLevelTool(inspectCost)
+                }
+                if (success) {
+                    _uiState.update { it.copy(purchasedPathInspectsRemaining = it.purchasedPathInspectsRemaining - 1) }
+                    executePathInspectAction(level, _uiState.value)
+                }
+            }
+        } else {
             _uiState.update {
                 it.copy(
                     showShopModal = true,
-                    shopFeedbackMessage = "⏳ فحص المسار في وقت انتظار (%02d:%02d) • يمكنك فتح التلميح والمسار والحل التلقائي فوراً بالنقاط!".format(mins, secs),
-                    topToastBanner = "⏳ المسار %02d:%02d • افتحه بالنقاط ⭐".format(mins, secs)
+                    shopFeedbackMessage = "🔒 تم استنفاد فحص المسار لهذا المستوى (3 مجانية + 3 شراء)!"
                 )
             }
-            scheduleToastDismiss(2200L)
-            return
         }
+    }
 
+    private fun executePathInspectAction(level: PuzzleLevel, state: GameplayUiState) {
         val targetArrow = ArrowPuzzleSolver.findBestHintArrow(
             level.gridWidth,
             level.gridHeight,
@@ -238,7 +263,6 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update {
             it.copy(
                 selectedPreviewArrowId = targetArrow.id,
-                pathInspectCooldownSeconds = 180, // 3 minutes cooldown
                 topToastBanner = null
             )
         }
@@ -462,6 +486,12 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 blockedFeedback = null,
                 selectedPreviewArrowId = null,
                 hintedArrowId = null,
+                freeHintsRemaining = 3,
+                purchasedHintsRemaining = 3,
+                freePathInspectsRemaining = 3,
+                purchasedPathInspectsRemaining = 3,
+                hintCooldownSeconds = 0,
+                pathInspectCooldownSeconds = 0,
                 topToastBanner = bannerText,
                 encouragementBanner = null,
                 livesRemaining = customLivesRemaining ?: 5,
@@ -761,56 +791,61 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /**
-     * Gives 1 hint and then locks for 3 minutes (180 seconds) cooldown (`كل 3 دقائق يعطي مرة تلميح`).
-     */
     fun triggerHint() {
         val state = _uiState.value
         val level = state.activeLevel ?: return
         if (state.remainingArrows.isEmpty() || state.isVictory || state.isGameOver) return
 
-        if (state.hintCooldownSeconds > 0) {
-            val mins = state.hintCooldownSeconds / 60
-            val secs = state.hintCooldownSeconds % 60
+        if (state.freeHintsRemaining > 0) {
+            _uiState.update { it.copy(freeHintsRemaining = it.freeHintsRemaining - 1) }
+            executeHintAction(level, state)
+        } else if (state.purchasedHintsRemaining > 0) {
+            viewModelScope.launch {
+                val profile = playerProfile.value
+                val hintCost = 35
+                if (profile.totalScore < hintCost) {
+                    _uiState.update {
+                        it.copy(
+                            showShopModal = true,
+                            shopFeedbackMessage = "تحتاج إلى $hintCost نقطة لشراء تلميح • رصيدك الحالي: ${profile.totalScore} 🛒 (متبقي ${state.purchasedHintsRemaining} مشتريات متاحة لهذا المستوى)"
+                        )
+                    }
+                    return@launch
+                }
+                val success = withContext(Dispatchers.IO) {
+                    repository.purchaseInLevelTool(hintCost)
+                }
+                if (success) {
+                    _uiState.update { it.copy(purchasedHintsRemaining = it.purchasedHintsRemaining - 1) }
+                    executeHintAction(level, _uiState.value)
+                }
+            }
+        } else {
             _uiState.update {
                 it.copy(
                     showShopModal = true,
-                    shopFeedbackMessage = "⏳ التلميح في وقت انتظار (%02d:%02d) • يمكنك فتح التلميح والمسار والحل التلقائي فوراً بالنقاط!".format(mins, secs),
-                    topToastBanner = "⏳ التلميح %02d:%02d • افتحه بالنقاط ⭐".format(mins, secs)
+                    shopFeedbackMessage = "🔒 تم استنفاد جميع التلميحات لهذا المستوى (3 مجانية + 3 شراء)!"
                 )
             }
-            scheduleToastDismiss(2200L)
-            return
         }
+    }
 
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                repository.consumeHint()
-            }
-            val movableArrows = ArrowPuzzleSolver.getMovableArrows(
-                level.gridWidth,
-                level.gridHeight,
-                state.remainingArrows
+    private fun executeHintAction(level: PuzzleLevel, state: GameplayUiState) {
+        val bestArrow = ArrowPuzzleSolver.findBestHintArrow(
+            level.gridWidth,
+            level.gridHeight,
+            state.remainingArrows
+        ) ?: state.remainingArrows.firstOrNull() ?: return
+
+        soundManager.playHintChime()
+        _uiState.update {
+            it.copy(
+                hintedArrowId = bestArrow.id,
+                selectedPreviewArrowId = bestArrow.id,
+                topToastBanner = null
             )
-            val bestArrow = ArrowPuzzleSolver.findBestHintArrow(
-                level.gridWidth,
-                level.gridHeight,
-                state.remainingArrows
-            )
-
-            soundManager.playHintChime()
-
-            _uiState.update {
-                it.copy(
-                    hintedArrowId = bestArrow?.id,
-                    selectedPreviewArrowId = bestArrow?.id,
-                    hintCooldownSeconds = 180,
-                    pathInspectCooldownSeconds = 180,
-                    topToastBanner = null
-                )
-            }
-            schedulePreviewAutoHide(8000L)
         }
+        schedulePreviewAutoHide(8000L)
     }
 
     fun undoLastMove() {

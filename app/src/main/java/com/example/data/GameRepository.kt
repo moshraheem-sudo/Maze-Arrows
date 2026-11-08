@@ -275,6 +275,17 @@ class GameRepository(private val dao: GameProgressDao) {
         )
     }
 
+    suspend fun purchaseInLevelTool(cost: Int): Boolean {
+        val profile = dao.getPlayerProfileOnce() ?: return false
+        if (profile.totalScore < cost) return false
+        dao.upsertPlayerProfile(
+            profile.copy(
+                totalScore = (profile.totalScore - cost).coerceAtLeast(0)
+            )
+        )
+        return true
+    }
+
     suspend fun unlockTierFirstLevel(tierStartLevel: Int) {
         val existing = dao.getLevelProgress(tierStartLevel)
         if (existing == null || !existing.isUnlocked) {

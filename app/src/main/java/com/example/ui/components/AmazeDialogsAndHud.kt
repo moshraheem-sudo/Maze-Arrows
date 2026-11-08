@@ -574,16 +574,42 @@ fun AmazeGameplayBottomBar(
     onResetZoomClick: () -> Unit,
     pathInspectCooldownSeconds: Int = 0,
     hintCooldownSeconds: Int = 0,
-    autoSolveCooldownSeconds: Int = 0
+    autoSolveCooldownSeconds: Int = 0,
+    freeHintsRemaining: Int = 3,
+    purchasedHintsRemaining: Int = 3,
+    freePathInspectsRemaining: Int = 3,
+    purchasedPathInspectsRemaining: Int = 3
 ) {
     val isDark = themePalette.isDark
     val cardBg = if (isDark) Color(0xFF20293C) else Color(0xFFF4E8D6)
     val chipBg = if (isDark) Color(0xFF2B3750) else Color(0xFFEBDAC2)
     val chipBorder = if (isDark) Color(0xFF47587A) else Color(0xFFD7C2A6)
     val contentTint = if (isDark) Color(0xFFFFFFFF) else Color(0xFF3E240E)
-    val isHintLocked = hintCooldownSeconds > 0
-    val isPathInspectLocked = pathInspectCooldownSeconds > 0
     val isAutoSolveLocked = autoSolveCooldownSeconds > 0 && !isAutoSolving
+
+    val hintLabel = when {
+        freeHintsRemaining > 0 -> "تلميح ($freeHintsRemaining)"
+        purchasedHintsRemaining > 0 -> "تلميح (🛒$purchasedHintsRemaining)"
+        else -> "تلميح (0)"
+    }
+    val hintEnabled = freeHintsRemaining > 0 || purchasedHintsRemaining > 0
+    val hintTint = when {
+        freeHintsRemaining > 0 -> if (isDark) Color(0xFFFFD54F) else Color(0xFFC86D14)
+        purchasedHintsRemaining > 0 -> if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD)
+        else -> if (isDark) Color(0xFF78909C) else Color(0xFFB0A495)
+    }
+
+    val pathLabel = when {
+        freePathInspectsRemaining > 0 -> "المسار ($freePathInspectsRemaining)"
+        purchasedPathInspectsRemaining > 0 -> "المسار (🛒$purchasedPathInspectsRemaining)"
+        else -> "المسار (0)"
+    }
+    val pathEnabled = freePathInspectsRemaining > 0 || purchasedPathInspectsRemaining > 0
+    val pathTint = when {
+        freePathInspectsRemaining > 0 -> if (isDark) Color(0xFF80D8FF) else contentTint
+        purchasedPathInspectsRemaining > 0 -> if (isDark) Color(0xFF81D4FA) else Color(0xFF0277BD)
+        else -> if (isDark) Color(0xFF78909C) else Color(0xFFB0A495)
+    }
 
     Surface(
         color = cardBg,
@@ -619,13 +645,9 @@ fun AmazeGameplayBottomBar(
 
             BottomActionChip(
                 icon = Icons.Default.Lightbulb,
-                label = if (isHintLocked) "🔒 ${formatTimerMmSs(hintCooldownSeconds)}" else "تلميح",
-                enabled = true,
-                tint = when {
-                    isHintLocked -> if (isDark) Color(0xFFFFECB3) else Color(0xFF8C5820)
-                    isDark -> Color(0xFFFFD54F)
-                    else -> Color(0xFFC86D14)
-                },
+                label = hintLabel,
+                enabled = hintEnabled,
+                tint = hintTint,
                 chipBg = chipBg,
                 chipBorder = chipBorder,
                 testTag = "bottom_hint_button",
@@ -634,13 +656,9 @@ fun AmazeGameplayBottomBar(
 
             BottomActionChip(
                 icon = Icons.Default.Visibility,
-                label = if (isPathInspectLocked) "🔒 ${formatTimerMmSs(pathInspectCooldownSeconds)}" else "فحص المسار",
-                enabled = true,
-                tint = when {
-                    isPathInspectLocked -> if (isDark) Color(0xFFB3E5FC) else Color(0xFF6B533B)
-                    isDark -> Color(0xFF80D8FF)
-                    else -> contentTint
-                },
+                label = pathLabel,
+                enabled = pathEnabled,
+                tint = pathTint,
                 chipBg = chipBg,
                 chipBorder = chipBorder,
                 testTag = "preview_mode_button",

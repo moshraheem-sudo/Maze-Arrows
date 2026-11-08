@@ -1474,7 +1474,11 @@ fun GameplayScreen(
             onResetZoomClick = onResetZoomClick,
             pathInspectCooldownSeconds = uiState.pathInspectCooldownSeconds,
             hintCooldownSeconds = uiState.hintCooldownSeconds,
-            autoSolveCooldownSeconds = uiState.autoSolveCooldownSeconds
+            autoSolveCooldownSeconds = uiState.autoSolveCooldownSeconds,
+            freeHintsRemaining = uiState.freeHintsRemaining,
+            purchasedHintsRemaining = uiState.purchasedHintsRemaining,
+            freePathInspectsRemaining = uiState.freePathInspectsRemaining,
+            purchasedPathInspectsRemaining = uiState.purchasedPathInspectsRemaining
         )
     }
 
