@@ -23,8 +23,8 @@ import java.net.URL
 import java.util.Locale
 
 data class GitHubUpdateCheckState(
-    val installedVersionName: String = "1.10",
-    val installedVersionCode: Long = 110L,
+    val installedVersionName: String = "1.20",
+    val installedVersionCode: Long = 120L,
     val remoteVersionName: String? = null,
     val isChecking: Boolean = false,
     val isDownloading: Boolean = false,
@@ -32,7 +32,7 @@ data class GitHubUpdateCheckState(
     val downloadedMegabytes: Float = 0f,
     val totalMegabytes: Float = 0f,
     val isUpdateAvailable: Boolean = false,
-    val comparisonSummaryAr: String = "الإصدار الحالي المثبّت: v1.10 • اضغط «فحص الإصدار» للبحث في رابط GitHub عن تحديث أحدث",
+    val comparisonSummaryAr: String = "الإصدار الحالي المثبّت: v1.20 • اضغط «فحص الإصدار» للبحث في رابط GitHub عن تحديث أحدث",
     val releaseNotesAr: String? = null,
     val downloadUrl: String = GitHubAppUpdater.GITHUB_REPO_URL,
     val hasDirectApkAsset: Boolean = false,

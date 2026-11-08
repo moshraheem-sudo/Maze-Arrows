@@ -235,27 +235,14 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         ) ?: state.remainingArrows.firstOrNull() ?: return
 
         soundManager.playArrowPreviewSelect()
-        val moveCheck = ArrowPuzzleSolver.checkMove(
-            level.gridWidth,
-            level.gridHeight,
-            state.remainingArrows,
-            targetArrow
-        )
-        val msg = if (moveCheck is MoveCheckResult.Clear) {
-            "✅ مسار السهم محدد باللون الأحمر: سالك ومفتوح للخروج!"
-        } else {
-            "⛔ مسار السهم محدد باللون الأحمر: مسدود بسهم آخر!"
-        }
-
         _uiState.update {
             it.copy(
                 selectedPreviewArrowId = targetArrow.id,
                 pathInspectCooldownSeconds = 180, // 3 minutes cooldown
-                topToastBanner = msg
+                topToastBanner = null
             )
         }
         schedulePreviewAutoHide(7000L)
-        scheduleToastDismiss(4500L)
     }
 
     fun clearPreviewArrow() {
@@ -586,35 +573,22 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         val level = state.activeLevel ?: return
 
         soundManager.playArrowPreviewSelect()
-        val moveCheck = ArrowPuzzleSolver.checkMove(
-            level.gridWidth,
-            level.gridHeight,
-            state.remainingArrows,
-            targetArrow
-        )
-        val msg = if (moveCheck is MoveCheckResult.Clear) {
-            "✅ مسار السهم محدد باللون الأحمر: سالك ومفتوح للخروج!"
-        } else {
-            "⛔ مسار السهم محدد باللون الأحمر: مسدود بنقطة التصادم!"
-        }
-
         _uiState.update {
             it.copy(
                 selectedPreviewArrowId = arrowId,
                 blockedFeedback = null,
-                topToastBanner = msg
+                topToastBanner = null
             )
         }
         schedulePreviewAutoHide(7000L)
-        scheduleToastDismiss(4000L)
     }
 
     /**
      * Called when the player releases their finger after a press-and-hold gesture.
-     * The preview will still auto-hide within 7 seconds from when it appeared.
+     * Keeps the thin laser path visible for 3.5 seconds so player can trace it, then cleanly auto-hides.
      */
     fun onArrowHoldReleased(arrowId: Int) {
-        // Keep the timer running so it disappears cleanly
+        schedulePreviewAutoHide(3500L)
     }
 
     /**
@@ -832,11 +806,10 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                     selectedPreviewArrowId = bestArrow?.id,
                     hintCooldownSeconds = 180,
                     pathInspectCooldownSeconds = 180,
-                    topToastBanner = "🎯 مسار السهم محدد باللون الأحمر الصريح — اضغط عليه لتحريكه!"
+                    topToastBanner = null
                 )
             }
             schedulePreviewAutoHide(8000L)
-            scheduleToastDismiss(5000L)
         }
     }
 

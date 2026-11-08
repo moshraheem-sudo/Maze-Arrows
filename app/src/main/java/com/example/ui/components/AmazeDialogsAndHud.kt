@@ -508,21 +508,23 @@ fun AmazeFloatingToastBanner(
     message: String?,
     modifier: Modifier = Modifier
 ) {
+    val isPathOrHintNote = message != null && (
+        message.contains("مسار") ||
+        message.contains("تلميح") ||
+        message.contains("سالك") ||
+        message.contains("مسدود") ||
+        message.contains("أحمر")
+    )
+
     AnimatedVisibility(
-        visible = message != null,
+        visible = message != null && !isPathOrHintNote,
         enter = fadeIn() + scaleIn(initialScale = 0.90f),
         exit = fadeOut() + scaleOut(targetScale = 0.90f),
         modifier = modifier
     ) {
-        val isRedPathAlert = message?.contains("أحمر") == true ||
-            message?.contains("تلميح") == true ||
-            message?.contains("مسار") == true ||
-            message?.contains("✅") == true ||
-            message?.contains("⛔") == true
-
-        val bgColor = if (isRedPathAlert) Color(0xFF111827) else Color(0xFFFFFDF9).copy(alpha = 0.96f)
-        val borderColor = if (isRedPathAlert) Color(0xFFFF1744) else Color(0xFFD9822B).copy(alpha = 0.40f)
-        val textColor = if (isRedPathAlert) Color(0xFFFFFFFF) else Color(0xFF8C4A15)
+        val bgColor = Color(0xFFFFFDF9).copy(alpha = 0.96f)
+        val borderColor = Color(0xFFD9822B).copy(alpha = 0.40f)
+        val textColor = Color(0xFF8C4A15)
 
         Surface(
             shape = RoundedCornerShape(50),
@@ -532,7 +534,7 @@ fun AmazeFloatingToastBanner(
                 .padding(horizontal = 20.dp, vertical = 4.dp)
                 .widthIn(max = 380.dp)
                 .border(
-                    width = if (isRedPathAlert) 1.5.dp else 1.dp,
+                    width = 1.dp,
                     color = borderColor,
                     shape = RoundedCornerShape(50)
                 )
@@ -543,14 +545,6 @@ fun AmazeFloatingToastBanner(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                if (isRedPathAlert) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(Color(0xFFFF1744), CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(7.dp))
-                }
                 Text(
                     text = message ?: "",
                     style = MaterialTheme.typography.labelLarge.copy(

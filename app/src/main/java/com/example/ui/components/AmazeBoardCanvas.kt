@@ -209,11 +209,11 @@ fun AmazeBoardCanvas(
                     var maxPointersSeen = 1
                     var totalPanDistance = 0f
 
-                    // Only trigger path preview if a single finger stays completely stationary for 480ms
+                    // Only trigger path preview if a single finger stays stationary for 320ms (smooth long-press)
                     val holdJob = if (hitArrow != null) {
                         gestureScope.launch {
-                            delay(480L)
-                            if (!isTransformGesture && maxPointersSeen == 1 && totalPanDistance < 6f) {
+                            delay(320L)
+                            if (!isTransformGesture && maxPointersSeen == 1 && totalPanDistance < 8f) {
                                 wasHoldTriggered = true
                                 onArrowLongPressed(hitArrow.id)
                             }
@@ -355,182 +355,7 @@ fun AmazeBoardCanvas(
                             }
                         }
 
-                        // 1.5 Draw Ultra-Vivid Crimson/Neon Red Path with Directional Beam (مسار أحمر نيون بارز وعالي الدقة)
-                        // Triggered for both Hint (التلميح) and Path Inspection (فحص المسار والضغط المطول)
-                        val previewTargetArrowId = selectedPreviewArrowId ?: hintedArrowId
-                        if (previewTargetArrowId != null) {
-                            val previewArrow = remainingArrows.firstOrNull { it.id == previewTargetArrowId }
-                            if (previewArrow != null) {
-                                val headX = originX + previewArrow.head.x * cellStep
-                                val headY = originY + previewArrow.head.y * cellStep
-                                val dir = previewArrow.headDirection
 
-                                val moveResult = ArrowPuzzleSolver.checkMove(
-                                    level.gridWidth,
-                                    level.gridHeight,
-                                    remainingArrows,
-                                    previewArrow
-                                )
-
-                                val endX: Float
-                                val endY: Float
-                                val isMoveClear: Boolean
-                                when (moveResult) {
-                                    is MoveCheckResult.Clear -> {
-                                        isMoveClear = true
-                                        val edgeGridX = when (dir) {
-                                            Direction.LEFT -> -0.90f
-                                            Direction.RIGHT -> level.gridWidth - 0.10f
-                                            else -> previewArrow.head.x.toFloat()
-                                        }
-                                        val edgeGridY = when (dir) {
-                                            Direction.UP -> -0.90f
-                                            Direction.DOWN -> level.gridHeight - 0.10f
-                                            else -> previewArrow.head.y.toFloat()
-                                        }
-                                        endX = originX + edgeGridX * cellStep
-                                        endY = originY + edgeGridY * cellStep
-                                    }
-                                    is MoveCheckResult.Blocked -> {
-                                        isMoveClear = false
-                                        endX = originX + moveResult.collisionPoint.x.toFloat() * cellStep
-                                        endY = originY + moveResult.collisionPoint.y.toFloat() * cellStep
-                                    }
-                                }
-
-                                // Layer 1: Wide Red/Crimson Glowing Aura (هالة حمراء مشعة عريضة)
-                                drawLine(
-                                    color = Color(0xFFFF1744).copy(alpha = 0.38f * laserPulseAlpha),
-                                    start = Offset(headX, headY),
-                                    end = Offset(endX, endY),
-                                    strokeWidth = (cellStep * 0.46f).coerceAtLeast(14f),
-                                    cap = StrokeCap.Round
-                                )
-
-                                // Layer 2: Contrasting Outline Border (إطار تباين ناصع)
-                                drawLine(
-                                    color = if (themePalette.isDark) Color(0xFF0F172A) else Color(0xFFFFFFFF),
-                                    start = Offset(headX, headY),
-                                    end = Offset(endX, endY),
-                                    strokeWidth = (cellStep * 0.28f).coerceAtLeast(9f),
-                                    cap = StrokeCap.Round
-                                )
-
-                                // Layer 3: Core Solid Vivid Crimson Red Path (الخط الأحمر الصريح المميز بدقة)
-                                drawLine(
-                                    color = Color(0xFFFF1744),
-                                    start = Offset(headX, headY),
-                                    end = Offset(endX, endY),
-                                    strokeWidth = (cellStep * 0.18f).coerceAtLeast(5.5f),
-                                    cap = StrokeCap.Round,
-                                    pathEffect = PathEffect.dashPathEffect(
-                                        floatArrayOf(cellStep * 0.24f, cellStep * 0.14f),
-                                        -dashOffset
-                                    )
-                                )
-
-                                // Layer 4: Directional Chevrons along the beam
-                                val totalDist = kotlin.math.hypot(endX - headX, endY - headY)
-                                if (totalDist > cellStep * 0.4f) {
-                                    val stepsCount = (totalDist / cellStep).toInt()
-                                    for (s in 1..stepsCount) {
-                                        val t = (s * cellStep) / totalDist
-                                        val cx = headX + (endX - headX) * t
-                                        val cy = headY + (endY - headY) * t
-                                        val chevSize = cellStep * 0.18f
-                                        val perpX = -dir.dy.toFloat()
-                                        val perpY = dir.dx.toFloat()
-                                        val cTipX = cx + dir.dx * chevSize
-                                        val cTipY = cy + dir.dy * chevSize
-                                        val cLeftX = cx - dir.dx * chevSize * 0.5f + perpX * chevSize
-                                        val cLeftY = cy - dir.dy * chevSize * 0.5f + perpY * chevSize
-                                        val cRightX = cx - dir.dx * chevSize * 0.5f - perpX * chevSize
-                                        val cRightY = cy - dir.dy * chevSize * 0.5f - perpY * chevSize
-
-                                        drawLine(
-                                            color = Color.White,
-                                            start = Offset(cLeftX, cLeftY),
-                                            end = Offset(cTipX, cTipY),
-                                            strokeWidth = (cellStep * 0.08f).coerceIn(2.5f, 4.5f),
-                                            cap = StrokeCap.Round
-                                        )
-                                        drawLine(
-                                            color = Color.White,
-                                            start = Offset(cRightX, cRightY),
-                                            end = Offset(cTipX, cTipY),
-                                            strokeWidth = (cellStep * 0.08f).coerceIn(2.5f, 4.5f),
-                                            cap = StrokeCap.Round
-                                        )
-                                    }
-                                }
-
-                                // Layer 5: End Target Beacon
-                                if (isMoveClear) {
-                                    val exitRadius = (cellStep * 0.40f).coerceAtLeast(14f)
-                                    drawCircle(
-                                        color = Color(0xFF00E676).copy(alpha = 0.35f * laserPulseAlpha),
-                                        radius = exitRadius * (1.25f + 0.15f * pulseFraction),
-                                        center = Offset(endX, endY)
-                                    )
-                                    drawCircle(
-                                        color = Color(0xFF00E676),
-                                        radius = exitRadius,
-                                        center = Offset(endX, endY)
-                                    )
-                                    drawCircle(
-                                        color = Color.White,
-                                        radius = exitRadius * 0.45f,
-                                        center = Offset(endX, endY)
-                                    )
-                                } else {
-                                    val stopRadius = (cellStep * 0.42f).coerceAtLeast(15f)
-                                    drawCircle(
-                                        color = Color(0xFFFF1744).copy(alpha = 0.40f * laserPulseAlpha),
-                                        radius = stopRadius * (1.30f + 0.20f * pulseFraction),
-                                        center = Offset(endX, endY)
-                                    )
-                                    drawCircle(
-                                        color = Color(0xFFFF1744),
-                                        radius = stopRadius,
-                                        center = Offset(endX, endY)
-                                    )
-                                    val xHalf = stopRadius * 0.48f
-                                    drawLine(
-                                        color = Color.White,
-                                        start = Offset(endX - xHalf, endY - xHalf),
-                                        end = Offset(endX + xHalf, endY + xHalf),
-                                        strokeWidth = 4f,
-                                        cap = StrokeCap.Round
-                                    )
-                                    drawLine(
-                                        color = Color.White,
-                                        start = Offset(endX + xHalf, endY - xHalf),
-                                        end = Offset(endX - xHalf, endY + xHalf),
-                                        strokeWidth = 4f,
-                                        cap = StrokeCap.Round
-                                    )
-                                }
-
-                                // Layer 6: Beacon Ring at the Arrow Head
-                                val headBeaconRadius = (cellStep * (0.34f + 0.14f * pulseFraction)).coerceAtLeast(12f)
-                                drawCircle(
-                                    color = Color(0xFFFF1744).copy(alpha = 0.45f * laserPulseAlpha),
-                                    radius = headBeaconRadius * 1.35f,
-                                    center = Offset(headX, headY)
-                                )
-                                drawCircle(
-                                    color = Color(0xFFFF1744),
-                                    radius = headBeaconRadius,
-                                    center = Offset(headX, headY),
-                                    style = Stroke(width = (cellStep * 0.10f).coerceIn(3.0f, 6.0f))
-                                )
-                                drawCircle(
-                                    color = Color.White,
-                                    radius = headBeaconRadius * 0.35f,
-                                    center = Offset(headX, headY)
-                                )
-                            }
-                        }
 
                         // 2. Draw subtle dotted trace if an arrow just bumped into an obstacle
                         if (blockedFeedback != null) {
@@ -612,6 +437,142 @@ fun AmazeBoardCanvas(
                                     strokePath = reusableStrokePath,
                                     headPath = reusableHeadPath
                                 )
+                            }
+                        }
+
+                        // 3.5 Draw Ultra-Thin Smooth Red Laser Beam Penetrating Across Entire Grid
+                        // (خط مسار ناعم مثل الليزر يخترق الشبكة بأكملها ليرى المستخدم المسار الكامل للسهم - رفيع أحمر وبشكل مميز)
+                        val previewTargetArrowId = selectedPreviewArrowId ?: hintedArrowId
+                        if (previewTargetArrowId != null) {
+                            val previewArrow = remainingArrows.firstOrNull { it.id == previewTargetArrowId }
+                            if (previewArrow != null) {
+                                val headX = originX + previewArrow.head.x * cellStep
+                                val headY = originY + previewArrow.head.y * cellStep
+                                val dir = previewArrow.headDirection
+
+                                // Laser penetrates the entire grid from arrow head all the way past outer board edge
+                                val fullLaserEndX = when (dir) {
+                                    Direction.LEFT -> originX - clipMargin * 0.70f
+                                    Direction.RIGHT -> originX + boardW + clipMargin * 0.70f
+                                    Direction.UP, Direction.DOWN -> headX
+                                }
+                                val fullLaserEndY = when (dir) {
+                                    Direction.UP -> originY - clipMargin * 0.70f
+                                    Direction.DOWN -> originY + boardH + clipMargin * 0.70f
+                                    Direction.LEFT, Direction.RIGHT -> headY
+                                }
+
+                                val moveResult = ArrowPuzzleSolver.checkMove(
+                                    level.gridWidth,
+                                    level.gridHeight,
+                                    remainingArrows,
+                                    previewArrow
+                                )
+
+                                val startLaserOffset = Offset(headX, headY)
+                                val endLaserOffset = Offset(fullLaserEndX, fullLaserEndY)
+
+                                // Layer 1: Ambient Red Laser Bloom / Glow (هالة ليزرية رقيقة وناعمة)
+                                drawLine(
+                                    color = Color(0xFFFF1744).copy(alpha = 0.22f * laserPulseAlpha),
+                                    start = startLaserOffset,
+                                    end = endLaserOffset,
+                                    strokeWidth = 3.2f,
+                                    cap = StrokeCap.Round
+                                )
+
+                                // Layer 2: Main Vivid Crimson Laser Beam (شعاع الليزر الأحمر الصريح والرفيع جداً)
+                                drawLine(
+                                    color = Color(0xFFFF0D36),
+                                    start = startLaserOffset,
+                                    end = endLaserOffset,
+                                    strokeWidth = 1.4f,
+                                    cap = StrokeCap.Round
+                                )
+
+                                // Layer 3: High-Energy Photonic Core (قلب الليزر الأبيض المشع فائق الدقة)
+                                drawLine(
+                                    color = Color(0xFFFFF0F5).copy(alpha = 0.90f),
+                                    start = startLaserOffset,
+                                    end = endLaserOffset,
+                                    strokeWidth = 0.7f,
+                                    cap = StrokeCap.Round
+                                )
+
+                                // Layer 4: Subtle energetic laser pulses traveling along beam
+                                drawLine(
+                                    color = Color(0xFFFF8A80).copy(alpha = 0.65f),
+                                    start = startLaserOffset,
+                                    end = endLaserOffset,
+                                    strokeWidth = 1.0f,
+                                    cap = StrokeCap.Round,
+                                    pathEffect = PathEffect.dashPathEffect(
+                                        floatArrayOf(cellStep * 0.18f, cellStep * 0.22f),
+                                        -dashOffset
+                                    )
+                                )
+
+                                // Laser Emitter Node at Arrow Head (مخرج الليزر عند رأس السهم بدقة)
+                                drawCircle(
+                                    color = Color(0xFFFF1744).copy(alpha = 0.35f * laserPulseAlpha),
+                                    radius = 4.8f,
+                                    center = startLaserOffset
+                                )
+                                drawCircle(
+                                    color = Color(0xFFFF0D36),
+                                    radius = 3.0f,
+                                    center = startLaserOffset
+                                )
+                                drawCircle(
+                                    color = Color.White,
+                                    radius = 1.2f,
+                                    center = startLaserOffset
+                                )
+
+                                // Laser Obstacle Collision or Clear Exit Feedback along the beam
+                                when (moveResult) {
+                                    is MoveCheckResult.Clear -> {
+                                        // Clear path: sleek luminous emerald dot at board boundary
+                                        drawCircle(
+                                            color = Color(0xFF00E676).copy(alpha = 0.35f * laserPulseAlpha),
+                                            radius = 5.0f,
+                                            center = endLaserOffset
+                                        )
+                                        drawCircle(
+                                            color = Color(0xFF00E676),
+                                            radius = 2.8f,
+                                            center = endLaserOffset
+                                        )
+                                        drawCircle(
+                                            color = Color.White,
+                                            radius = 1.2f,
+                                            center = endLaserOffset
+                                        )
+                                    }
+                                    is MoveCheckResult.Blocked -> {
+                                        // Blocked path: sleek impact reticle where collision happens
+                                        val colX = originX + moveResult.collisionPoint.x.toFloat() * cellStep
+                                        val colY = originY + moveResult.collisionPoint.y.toFloat() * cellStep
+                                        val colOffset = Offset(colX, colY)
+
+                                        drawCircle(
+                                            color = Color(0xFFFF1744).copy(alpha = 0.25f * laserPulseAlpha),
+                                            radius = 6.0f * (1f + 0.1f * pulseFraction),
+                                            center = colOffset
+                                        )
+                                        drawCircle(
+                                            color = Color(0xFFFF1744),
+                                            radius = 3.8f,
+                                            center = colOffset,
+                                            style = Stroke(width = 1.2f)
+                                        )
+                                        drawCircle(
+                                            color = Color.White,
+                                            radius = 1.4f,
+                                            center = colOffset
+                                        )
+                                    }
+                                }
                             }
                         }
 
