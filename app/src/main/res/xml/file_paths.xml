@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <external-files-path
-        name="in_app_updates"
-        path="Download/" />
+        name="external_files"
+        path="." />
+    <external-cache-path
+        name="external_cache"
+        path="." />
     <cache-path
-        name="cache_updates"
-        path="updates/" />
+        name="cache_files"
+        path="." />
     <files-path
-        name="internal_updates"
-        path="updates/" />
+        name="internal_files"
+        path="." />
+    <external-path
+        name="external_storage"
+        path="." />
 </paths>

@@ -5,12 +5,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -18,6 +20,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.engine.AppThemeMode
@@ -37,13 +42,35 @@ import com.example.viewmodel.AmazeGameViewModel
 import com.example.viewmodel.AppScreen
 
 class MainActivity : ComponentActivity() {
+    private val mainViewModel: AmazeGameViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         SecurityShieldManager.applyAntiTapjacking(this)
         enableEdgeToEdge()
         setContent {
-            AmazeArrowsApp()
+            AmazeArrowsApp(viewModel = mainViewModel)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mainViewModel.onActivityResumed()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        mainViewModel.onActivityPaused()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        mainViewModel.onActivityPaused()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mainViewModel.onActivityDestroyed()
     }
 }
 
@@ -65,6 +92,31 @@ fun AmazeArrowsApp(
 
     val context = LocalContext.current
     val activity = context as? Activity
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP -> {
+                    viewModel.onActivityPaused()
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.onActivityResumed()
+                }
+                Lifecycle.Event.ON_DESTROY -> {
+                    viewModel.onActivityDestroyed()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.onActivityPaused()
+        }
+    }
+
     LaunchedEffect(uiState.screenPrivacyProtectionEnabled) {
         SecurityShieldManager.setScreenCaptureProtection(activity, uiState.screenPrivacyProtectionEnabled)
     }
@@ -157,6 +209,7 @@ fun AmazeArrowsApp(
                         updateCheckState = uiState.updateCheckState,
                         onCheckGitHubUpdate = { viewModel.checkGitHubVersionComparison() },
                         onDownloadGitHubUpdate = { viewModel.downloadAndInstallGitHubUpdate() },
+                        onOpenBrowserUpdate = { viewModel.openUpdateInBrowser() },
                         onDismiss = { viewModel.setShowSettingsModal(false) },
                         onToggleSound = { viewModel.toggleSound(it) },
                         onToggleVibration = { viewModel.toggleVibration(it) },

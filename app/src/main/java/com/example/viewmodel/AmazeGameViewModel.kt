@@ -1014,11 +1014,11 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 val outcome = GitHubAppUpdater.launchSystemInstallerWithPermissions(getApplication(), existingFile)
                 val statusMsg = when (outcome) {
                     GitHubAppUpdater.InstallLaunchOutcome.LAUNCHED_INSTALLER ->
-                        "✅ تم فتح مثبّت النظام الآمن لتثبيت التحديث v${state.remoteVersionName ?: ""}."
+                        "✅ تم فتح مثبّت النظام لتثبيت التحديث v${state.remoteVersionName ?: ""}."
                     GitHubAppUpdater.InstallLaunchOutcome.REQUESTED_PERMISSION ->
-                        "🔐 يرجى تفعيل صلاحية «السماح من هذا المصدر» ثم اضغط زر التثبيت مرة أخرى."
+                        "🔐 يرجى تفعيل خيار «السماح بتثبيت التطبيقات من هذا المصدر» في نافذة الإعدادات، ثم ارجع واضغط «تثبيت التحديث الآن»."
                     GitHubAppUpdater.InstallLaunchOutcome.FAILED ->
-                        "⚠️ تعذر فتح مثبّت النظام تلقائياً."
+                        "⚠️ تعذر تشغيل مثبّت النظام تلقائياً على هاتفك. يمكنك الضغط على «فتح في المتصفح» لتنزيل وتثبيت التحديث مباشرة."
                 }
                 _uiState.update {
                     it.copy(updateCheckState = it.updateCheckState.copy(comparisonSummaryAr = statusMsg))
@@ -1642,6 +1642,25 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
             delay(delayMs)
             _uiState.update { it.copy(encouragementBanner = null) }
         }
+    }
+
+    fun openUpdateInBrowser() {
+        val url = _uiState.value.updateCheckState.downloadUrl
+        GitHubAppUpdater.openDirectDownloadInBrowser(getApplication(), url)
+    }
+
+    fun onActivityPaused() {
+        soundManager.onAppBackgrounded()
+    }
+
+    fun onActivityResumed() {
+        val isGameplay = _uiState.value.currentScreen == AppScreen.GAMEPLAY
+        val musicOn = _playerProfile.value.musicEnabled
+        soundManager.onAppForegrounded(shouldPlayMusic = isGameplay && musicOn)
+    }
+
+    fun onActivityDestroyed() {
+        soundManager.release()
     }
 
     override fun onCleared() {

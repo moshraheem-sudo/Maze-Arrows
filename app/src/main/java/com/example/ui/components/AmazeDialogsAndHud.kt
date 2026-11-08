@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RemoveRedEye
@@ -735,6 +736,7 @@ fun AmazeSettingsDialog(
     updateCheckState: GitHubUpdateCheckState = GitHubUpdateCheckState(),
     onCheckGitHubUpdate: () -> Unit = {},
     onDownloadGitHubUpdate: () -> Unit = {},
+    onOpenBrowserUpdate: () -> Unit = {},
     onDismiss: () -> Unit,
     onToggleSound: (Boolean) -> Unit,
     onToggleVibration: (Boolean) -> Unit,
@@ -1650,6 +1652,46 @@ fun AmazeSettingsDialog(
                                         softWrap = false
                                     )
                                 }
+                            }
+
+                            if (!updateCheckState.readyApkFilePath.isNullOrBlank() || updateCheckState.isUpdateAvailable) {
+                                OutlinedButton(
+                                    onClick = onOpenBrowserUpdate,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp)
+                                        .testTag("open_browser_update_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.OpenInBrowser,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "تنزيل وتثبيت مباشر عبر المتصفح (Chrome) 🌐",
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.5.sp
+                                        ),
+                                        maxLines = 1
+                                    )
+                                }
+
+                                Text(
+                                    text = "💡 إذا ظهرت لك شاشة إذن النظام، فعّل «السماح من هذا المصدر» ثم عُد واضغط «تثبيت التحديث الآن»، أو استخدم زر «التنزيل عبر المتصفح» للتثبيت بنقرة واحدة.",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 10.sp,
+                                        lineHeight = 14.sp
+                                    ),
+                                    color = subTextColor,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                                )
                             }
 
                         }

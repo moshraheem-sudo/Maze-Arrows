@@ -28,6 +28,11 @@ class SoundAndHapticManager(private val context: Context) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var musicJob: Job? = null
+    @Volatile
+    private var currentAudioTrack: AudioTrack? = null
+
+    @Volatile
+    var isAppInForeground: Boolean = true
 
     @Volatile
     var soundEnabled: Boolean = true
@@ -138,17 +143,17 @@ class SoundAndHapticManager(private val context: Context) {
     }
 
     fun startAmbientMusicIfNeeded() {
-        if (!musicEnabled) return
+        if (!musicEnabled || !isAppInForeground) return
         if (musicJob?.isActive == true) return
         musicJob = scope.launch {
-            delay(600L)
+            delay(500L)
             val ambientSequence = doubleArrayOf(
                 261.63, 329.63, 392.00, 523.25,
                 293.66, 392.00, 440.00, 587.33,
                 329.63, 392.00, 523.25, 659.25
             )
             var idx = 0
-            while (isActive && musicEnabled) {
+            while (isActive && musicEnabled && isAppInForeground) {
                 val freq = ambientSequence[idx % ambientSequence.size]
                 playSoftBellNote(freq, durationMs = 620, volume = 0.05)
                 idx++
@@ -160,9 +165,30 @@ class SoundAndHapticManager(private val context: Context) {
     fun stopAmbientMusic() {
         musicJob?.cancel()
         musicJob = null
+        try {
+            currentAudioTrack?.pause()
+            currentAudioTrack?.flush()
+            currentAudioTrack?.stop()
+            currentAudioTrack?.release()
+        } catch (_: Throwable) {
+        }
+        currentAudioTrack = null
+    }
+
+    fun onAppBackgrounded() {
+        isAppInForeground = false
+        stopAmbientMusic()
+    }
+
+    fun onAppForegrounded(shouldPlayMusic: Boolean) {
+        isAppInForeground = true
+        if (shouldPlayMusic && musicEnabled) {
+            startAmbientMusicIfNeeded()
+        }
     }
 
     fun release() {
+        isAppInForeground = false
         stopAmbientMusic()
     }
 
@@ -276,13 +302,24 @@ class SoundAndHapticManager(private val context: Context) {
             .setTransferMode(AudioTrack.MODE_STATIC)
             .build()
 
+        if (!isAppInForeground) return
         try {
+            currentAudioTrack = track
             track.write(samples, 0, samples.size)
-            track.play()
-            delay(durationMs.toLong() + 20L)
-            track.stop()
+            if (isAppInForeground) {
+                track.play()
+                delay(durationMs.toLong() + 20L)
+                track.stop()
+            }
+        } catch (_: Throwable) {
         } finally {
-            track.release()
+            try {
+                track.release()
+            } catch (_: Throwable) {
+            }
+            if (currentAudioTrack === track) {
+                currentAudioTrack = null
+            }
         }
     }
 

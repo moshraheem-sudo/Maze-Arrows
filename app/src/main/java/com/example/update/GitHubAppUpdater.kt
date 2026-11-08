@@ -488,22 +488,41 @@ object GitHubAppUpdater {
 
     /**
      * Launches the Android system package installer using FileProvider within system permissions.
-     * On Android 8.0+ (API 26+), checks `canRequestPackageInstalls()` first and opens the
-     * system permission screen (`ACTION_MANAGE_UNKNOWN_APP_SOURCES`) if permission is not yet granted.
+     * Handles permissions, explicit URI grants, intent fallbacks, and multi-OEM compatibility.
      */
     fun launchSystemInstallerWithPermissions(context: Context, apkFile: File): InstallLaunchOutcome {
         if (!apkFile.exists()) return InstallLaunchOutcome.FAILED
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (!context.packageManager.canRequestPackageInstalls()) {
-                    val permIntent = Intent(
-                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:${context.packageName}")
-                    ).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                val canInstall = try {
+                    context.packageManager.canRequestPackageInstalls()
+                } catch (_: Exception) {
+                    true
+                }
+                if (!canInstall) {
+                    var openedSettings = false
+                    try {
+                        val permIntent = Intent(
+                            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                            Uri.parse("package:${context.packageName}")
+                        ).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(permIntent)
+                        openedSettings = true
+                    } catch (_: Exception) {
+                        try {
+                            val secIntent = Intent(Settings.ACTION_SECURITY_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(secIntent)
+                            openedSettings = true
+                        } catch (_: Exception) {
+                        }
                     }
-                    context.startActivity(permIntent)
-                    return InstallLaunchOutcome.REQUESTED_PERMISSION
+                    if (openedSettings) {
+                        return InstallLaunchOutcome.REQUESTED_PERMISSION
+                    }
                 }
             }
 
@@ -512,15 +531,109 @@ object GitHubAppUpdater {
                 "${context.packageName}.fileprovider",
                 apkFile
             )
+
+            // Primary: ACTION_VIEW with package-archive
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(contentUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
-            context.startActivity(installIntent)
-            InstallLaunchOutcome.LAUNCHED_INSTALLER
+
+            // Grant read permission to all candidate package installers
+            try {
+                val resInfoList = context.packageManager.queryIntentActivities(installIntent, 0)
+                for (resolveInfo in resInfoList) {
+                    val pkg = resolveInfo.activityInfo.packageName
+                    context.grantUriPermission(pkg, contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            } catch (_: Exception) {
+            }
+
+            var launched = false
+            try {
+                context.startActivity(installIntent)
+                launched = true
+            } catch (_: Exception) {
+                // Secondary fallback: ACTION_INSTALL_PACKAGE
+                try {
+                    val legacyIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                        data = contentUri
+                        putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                        putExtra(Intent.EXTRA_RETURN_RESULT, true)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(legacyIntent)
+                    launched = true
+                } catch (_: Exception) {
+                    // Tertiary fallback: Intent Chooser
+                    try {
+                        val chooser = Intent.createChooser(installIntent, "تثبيت التحديث بواسطة").apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(chooser)
+                        launched = true
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+
+            if (launched) {
+                InstallLaunchOutcome.LAUNCHED_INSTALLER
+            } else {
+                InstallLaunchOutcome.FAILED
+            }
         } catch (_: Exception) {
             InstallLaunchOutcome.FAILED
+        }
+    }
+
+    /**
+     * Opens direct download or GitHub releases page in external browser (e.g. Chrome)
+     * so user can download & install directly with 1 tap if in-app installer encounters OEM hurdles.
+     */
+    fun openDirectDownloadInBrowser(context: Context, url: String) {
+        try {
+            val target = if (url.startsWith("http://") || url.startsWith("https://")) {
+                url
+            } else {
+                GITHUB_REPO_URL
+            }
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(browserIntent)
+        } catch (_: Exception) {
+        }
+    }
+
+    /**
+     * Shares or opens the downloaded APK via any installed File Manager or app on device.
+     */
+    fun openApkInSystemFiles(context: Context, apkFile: File): Boolean {
+        if (!apkFile.exists()) return false
+        return try {
+            val contentUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                apkFile
+            )
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/vnd.android.package-archive"
+                putExtra(Intent.EXTRA_STREAM, contentUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(shareIntent, "فتح أو مشاركة ملف التحديث (APK)").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 }
