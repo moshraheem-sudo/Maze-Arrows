@@ -37,9 +37,19 @@ class GameRepository(private val dao: GameProgressDao) {
                     isCompleted = false
                 )
             )
-        } else if (currentProfile.totalScore > 150) {
-            // Automatically rebalance legacy inflated test balance (>150 pts) to disciplined economy (80 pts)
-            dao.upsertPlayerProfile(currentProfile.copy(totalScore = 80))
+        } else {
+            var updated = currentProfile
+            if (currentProfile.totalScore > 150) {
+                // Rebalance legacy inflated test balance (>150 pts) to disciplined economy (80 pts)
+                updated = updated.copy(totalScore = 80)
+            }
+            if (currentProfile.lockedDifficultyTierName.isNotBlank()) {
+                // Clear any legacy locked difficulty tier so levels 1-5 start truly easy as designed
+                updated = updated.copy(lockedDifficultyTierName = "")
+            }
+            if (updated != currentProfile) {
+                dao.upsertPlayerProfile(updated)
+            }
         }
     }
 

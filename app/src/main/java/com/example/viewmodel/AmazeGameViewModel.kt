@@ -324,7 +324,8 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _uiState.update { it.copy(isGeneratingLevel = true, retryEscalationCount = 0) }
             val dnaSeed = playerProfile.value.playerDnaSeed
-            val lockedTier = resolveLockedDifficultyTier()
+            // Levels 1 to 5 always start strictly in EASY mode without being hijacked by old locks!
+            val lockedTier = if (levelNumber <= 5) null else resolveLockedDifficultyTier()
             val bonusBankSeconds = withContext(Dispatchers.IO) {
                 repository.consumeBonusTimeBank()
             }
@@ -343,11 +344,17 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 repository.setActiveLevel(levelNumber)
             }
 
-            // Check if user has an unfinished session to resume from where they left off
+            // Check if user has an unfinished session to resume from where they left off,
+            // strictly validating that all saved arrow IDs exist in the newly generated layout
             val savedIds = if (savedProgress?.hasSavedProgress == true && !savedProgress.savedRemainingArrowIdsCsv.isNullOrBlank()) {
-                savedProgress.savedRemainingArrowIdsCsv.split(",")
+                val parsed = savedProgress.savedRemainingArrowIdsCsv.split(",")
                     .mapNotNull { it.trim().toIntOrNull() }
                     .toSet()
+                if (parsed.isNotEmpty() && parsed.all { id -> generated.arrows.any { it.id == id } }) {
+                    parsed
+                } else {
+                    emptySet()
+                }
             } else {
                 emptySet()
             }
@@ -522,9 +529,9 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Escalates the current level to a harder difficulty mode with a freshly generated denser board
-     * and 5 full attempts (`5 محاولات`), UNLESS the player has purchased "ميزة البقاء في وضع معين"
-     * (`lockedDifficultyTierName`), in which case it keeps them in their chosen mode!
+     * Escalates the current level to a strictly harder difficulty mode with a freshly generated, denser
+     * and more intricate board layout whenever the player chooses the free retry option.
+     * The ONLY way to stay in the exact current layout and progress is purchasing continuation with points.
      */
     private fun escalateAndReopenSameLevel(reasonPrefix: String) {
         val state = _uiState.value
@@ -532,22 +539,29 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         stopAutoSolve()
         stopTimer()
 
-        val lockedTier = resolveLockedDifficultyTier()
-        val nextEscalation = if (lockedTier != null) 0 else (state.retryEscalationCount + 1)
+        // Discard any saved partial progress so old arrows are not restored
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.clearActiveLevelProgress(curLevel.levelNumber)
+            // Clear any old mode lock so free retries always escalate without being stuck
+            repository.clearLockedDifficultyMode()
+        }
+
+        val nextEscalation = state.retryEscalationCount + 1
+        // Step up to a strictly harder difficulty tier!
+        val nextTier = DifficultyTier.entries[
+            (curLevel.difficulty.tierIndex + 1).coerceAtMost(DifficultyTier.entries.lastIndex)
+        ]
         val dnaSeed = playerProfile.value.playerDnaSeed
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isGeneratingLevel = true) }
+            _uiState.update { it.copy(isGeneratingLevel = true, retryEscalationCount = nextEscalation) }
             val bonusBankSeconds = withContext(Dispatchers.IO) {
                 repository.consumeBonusTimeBank()
             }
             val nextLevelBoard = withContext(Dispatchers.Default) {
                 if (curLevel.isCustomGenerated) {
-                    val targetDiff = lockedTier ?: DifficultyTier.entries[
-                        (curLevel.difficulty.ordinal + 1).coerceAtMost(DifficultyTier.entries.lastIndex)
-                    ]
                     SmartLevelGenerator.generateCustomLevel(
-                        difficulty = targetDiff,
+                        difficulty = nextTier,
                         shapeMask = curLevel.shapeMask,
                         archetype = curLevel.algorithmArchetype,
                         playerDnaSeed = dnaSeed,
@@ -558,15 +572,11 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                         levelNumber = curLevel.levelNumber,
                         playerDnaSeed = dnaSeed,
                         escalationSteps = nextEscalation,
-                        forcedDifficultyTier = lockedTier
+                        forcedDifficultyTier = nextTier
                     )
                 }
             }
-            val msg = if (lockedTier != null) {
-                "🔄 المستوى ${curLevel.levelNumber} • ${lockedTier.arabicLabel}"
-            } else {
-                "🔥 المستوى ${curLevel.levelNumber} • وضع ${nextLevelBoard.difficulty.arabicLabel}"
-            }
+            val msg = "🔥 نمط أصعب جديد • وضع ${nextLevelBoard.difficulty.arabicLabel} (محاولة $nextEscalation)"
             launchLevelIntoGameplay(
                 level = nextLevelBoard,
                 escalationCount = nextEscalation,

@@ -43,16 +43,24 @@ object SmartLevelGenerator {
         forcedDifficultyTier: DifficultyTier? = null
     ): PuzzleLevel {
         val clampedLevel = levelNumber.coerceAtLeast(1)
-        val tier = forcedDifficultyTier ?: DifficultyTier.dynamicForLevel(clampedLevel, escalationSteps)
-        val effectiveEscalation = if (forcedDifficultyTier != null) 0 else escalationSteps
-        val salt = clampedLevel.toLong() * 1009L + effectiveEscalation.toLong() * 7919L
+        val tier = if (forcedDifficultyTier != null) {
+            if (escalationSteps > 0) {
+                val escalatedIdx = (forcedDifficultyTier.tierIndex + escalationSteps).coerceIn(0, DifficultyTier.entries.lastIndex)
+                DifficultyTier.entries[escalatedIdx]
+            } else {
+                forcedDifficultyTier
+            }
+        } else {
+            DifficultyTier.dynamicForLevel(clampedLevel, escalationSteps)
+        }
+        val salt = clampedLevel.toLong() * 1009L + escalationSteps.toLong() * 7919L + (if (escalationSteps > 0) ((System.currentTimeMillis() xor (escalationSteps * 31337L)) and 0xFFFFL) else 0L)
         val combinedSeed = mixSeed(playerDnaSeed, salt)
         val rng = Random(combinedSeed)
 
-        val (gridW, gridH) = computeDynamicDimensions(clampedLevel, tier, effectiveEscalation)
+        val (gridW, gridH) = computeDynamicDimensions(clampedLevel, tier, escalationSteps)
         // Automatically vary board shapes and smart generator archetypes across levels
-        val shapeMask = selectDynamicShapeMask(clampedLevel, tier, effectiveEscalation, rng)
-        val archetype = selectArchetypeForLevel(clampedLevel + effectiveEscalation * 3, tier, rng)
+        val shapeMask = selectDynamicShapeMask(clampedLevel, tier, escalationSteps, rng)
+        val archetype = selectArchetypeForLevel(clampedLevel + escalationSteps * 3, tier, rng)
 
         return buildZeroGapPeeledLevel(
             levelNumber = clampedLevel,
@@ -113,9 +121,10 @@ object SmartLevelGenerator {
     }
 
     /**
-     * Computes board dimensions based on the system-selected dynamic [tier], [levelNumber],
-     * and [escalationSteps] (when the player exhausts attempts or restarts, the board becomes
-     * larger and denser!).
+     * Computes board dimensions based on dynamic [tier], [levelNumber], and [escalationSteps].
+     * - Levels 1-5 start truly easy (5x8 up to 8x12, ~12-46 arrows).
+     * - Level 6+ escalates smoothly into dense, complex labyrinths (Medium -> Hard -> Expert -> Pro).
+     * - On retry/timeout escalation, dimensions and complexity increase to challenge the player.
      */
     private fun computeDynamicDimensions(
         levelNumber: Int,
@@ -123,19 +132,38 @@ object SmartLevelGenerator {
         escalationSteps: Int
     ): Pair<Int, Int> {
         val basePair = when (tier) {
-            DifficultyTier.EASY -> 14 to 21
-            DifficultyTier.MEDIUM -> 17 to 25
-            DifficultyTier.HARD -> 19 to 29
-            DifficultyTier.EXPERT -> 21 to 32
-            DifficultyTier.PRO -> 24 to 36
+            DifficultyTier.EASY -> {
+                when (levelNumber) {
+                    1 -> 5 to 8      // ~40 cells -> ~12-16 arrows
+                    2 -> 6 to 9      // ~54 cells -> ~18-24 arrows
+                    3 -> 7 to 10     // ~70 cells -> ~24-30 arrows
+                    4 -> 8 to 11     // ~88 cells -> ~30-38 arrows
+                    5 -> 8 to 12     // ~96 cells -> ~36-46 arrows
+                    else -> 9 to 13  // ~117 cells -> ~45-55 arrows
+                }
+            }
+            DifficultyTier.MEDIUM -> {
+                val subProg = ((levelNumber - 6).coerceAtLeast(0) / 2).coerceAtMost(3)
+                (11 + subProg) to (15 + subProg * 2) // ~165-220 cells -> ~60-90 arrows
+            }
+            DifficultyTier.HARD -> {
+                val subProg = ((levelNumber - 11).coerceAtLeast(0) / 4).coerceAtMost(3)
+                (14 + subProg) to (20 + subProg * 2) // ~280-380 cells -> ~100-140 arrows
+            }
+            DifficultyTier.EXPERT -> {
+                val subProg = ((levelNumber - 26).coerceAtLeast(0) / 8).coerceAtMost(3)
+                (17 + subProg) to (25 + subProg * 2) // ~425-550 cells -> ~150-220 arrows
+            }
+            DifficultyTier.PRO -> {
+                val subProg = ((levelNumber - 61).coerceAtLeast(0) / 15).coerceAtMost(4)
+                (20 + subProg) to (30 + subProg * 2) // ~600-850 cells -> ~240-350+ arrows
+            }
         }
-        val levelBonusW = ((levelNumber - 1) / 20).coerceIn(0, 4)
-        val levelBonusH = ((levelNumber - 1) / 15).coerceIn(0, 6)
-        val escBonusW = escalationSteps * 2
-        val escBonusH = escalationSteps * 3
+        val escBonusW = escalationSteps
+        val escBonusH = escalationSteps * 2
 
-        val finalW = (basePair.first + levelBonusW + escBonusW).coerceIn(14, 26)
-        val finalH = (basePair.second + levelBonusH + escBonusH).coerceIn(21, 38)
+        val finalW = (basePair.first + escBonusW).coerceIn(5, 26)
+        val finalH = (basePair.second + escBonusH).coerceIn(8, 38)
         return finalW to finalH
     }
 
@@ -145,7 +173,7 @@ object SmartLevelGenerator {
         escalationSteps: Int,
         rng: Random
     ): BoardShapeMask {
-        if (levelNumber <= 2 && escalationSteps == 0) return BoardShapeMask.FULL_MATRIX
+        if (levelNumber <= 5 && escalationSteps == 0) return BoardShapeMask.FULL_MATRIX
         val masks = BoardShapeMask.entries
         val idx = (levelNumber * 3 + tier.tierIndex + escalationSteps * 2 + rng.nextInt(0, 2)) % masks.size
         return masks[idx]
@@ -750,8 +778,13 @@ object SmartLevelGenerator {
         levelNumber: Int,
         rng: Random
     ): ArrowStyle {
-        if (levelNumber == 1 && stepIndex % 3 != 0) {
-            return if (rng.nextBoolean()) ArrowStyle.BRACKET else ArrowStyle.HOOK
+        if (levelNumber <= 5) {
+            val roll = rng.nextFloat()
+            return when {
+                roll < 0.45f -> ArrowStyle.HOOK
+                roll < 0.80f -> ArrowStyle.BRACKET
+                else -> ArrowStyle.STRAIGHT
+            }
         }
         val roll = rng.nextFloat()
         return when (archetype) {
@@ -789,8 +822,12 @@ object SmartLevelGenerator {
         style: ArrowStyle,
         rng: Random
     ): Int {
-        // Keep arrows compact & multi-turned (3 to 8 cells) so every grid packs 100–310+ closely-spaced
-        // interlocking arrows instead of a few long ones!
+        if (levelNumber <= 2) {
+            return rng.nextInt(2, 4) // 2 to 3 cells: very clear and accessible
+        } else if (levelNumber <= 5) {
+            return rng.nextInt(3, 5) // 3 to 4 cells: moderate
+        }
+        // Level 6+: full dense interlocking arrows (3 to 8 cells)
         return when (style) {
             ArrowStyle.SPIRAL -> rng.nextInt(5, 9)
             ArrowStyle.SERPENTINE -> rng.nextInt(4, 8)

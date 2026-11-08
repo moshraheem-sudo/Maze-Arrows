@@ -206,33 +206,21 @@ enum class DifficultyTier(
         }
 
         /**
-         * Automatically alternates and varies between Easy, Medium, Hard, Expert, and Pro modes
-         * across levels with heightened challenge, while stepping up to a strictly harder mode
-         * whenever [escalationSteps] > 0 (on retry / exhausted attempts).
+         * Rebalanced difficulty progression:
+         * - Levels 1 to 5: ALWAYS strictly EASY (سهل) as baseline, with compact, accessible layouts!
+         *   On timeout/failure escalation (escalationSteps > 0), they step up smoothly (Easy -> Medium -> Hard).
+         * - Levels 6 to 10: MEDIUM (متوسط)
+         * - Levels 11 to 25: HARD (صعب)
+         * - Levels 26 to 60: EXPERT (خبير)
+         * - Levels 61+: PRO (محترف) with dense, deeply winding labyrinths.
          */
         fun dynamicForLevel(levelNumber: Int, escalationSteps: Int = 0): DifficultyTier {
             val baseTierIndex = when {
-                levelNumber == 1 -> 1 // Starts right away with dense Medium-grade challenge
-                levelNumber == 2 -> 2 // HARD
-                levelNumber == 3 -> 3 // EXPERT challenge wave
-                levelNumber == 4 -> 1 // Dense breather wave
-                levelNumber == 5 -> 2 // HARD
-                levelNumber == 6 -> 3 // EXPERT
-                levelNumber == 7 -> 4 // PRO master wave
-                levelNumber == 8 -> 2 // HARD wave
-                else -> {
-                    // Dynamic 6-level high-intensity wave cycle
-                    val cyclePos = (levelNumber - 9) % 6
-                    val progressionBoost = ((levelNumber - 1) / 25).coerceIn(0, 2)
-                    when (cyclePos) {
-                        0 -> (1 + progressionBoost).coerceAtMost(3)
-                        1 -> (2 + progressionBoost).coerceAtMost(4)
-                        2 -> (3 + progressionBoost).coerceAtMost(4)
-                        3 -> (2 + progressionBoost).coerceAtMost(3)
-                        4 -> (4).coerceAtMost(4)
-                        else -> (3 + progressionBoost).coerceAtMost(4)
-                    }
-                }
+                levelNumber in 1..5 -> 0 // Strictly EASY as baseline for first 5 levels!
+                levelNumber in 6..10 -> 1 // MEDIUM
+                levelNumber in 11..25 -> 2 // HARD
+                levelNumber in 26..60 -> 3 // EXPERT
+                else -> 4 // PRO master for 61+
             }
             val escalatedIndex = (baseTierIndex + escalationSteps).coerceIn(0, entries.lastIndex)
             return entries[escalatedIndex]

@@ -3010,21 +3010,40 @@ fun AmazeGameOverDialog(
                         .fillMaxWidth()
                         .testTag("buy_attempts_continue_button")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "متابعة اللعب (+5 محاولات) • $extraAttemptsCost ⭐",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.5.sp
-                        ),
-                        textAlign = TextAlign.Center,
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(vertical = 4.dp)
-                    )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "متابعة اللعب (+5 محاولات) • $extraAttemptsCost ⭐",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp
+                                ),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "متابعة نفس اللوحة الحالية والأسهم المتبقية دون تغيير",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = Color.White.copy(alpha = 0.92f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -3062,7 +3081,7 @@ fun AmazeGameOverDialog(
                 HorizontalDivider(color = dividerColor)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Option 3: Free fallback — clean friendly retry
+                // Option 3: Free fallback — escalates to a harder difficulty with a brand-new board
                 OutlinedButton(
                     onClick = onRefillLives,
                     shape = RoundedCornerShape(14.dp),
@@ -3074,22 +3093,41 @@ fun AmazeGameOverDialog(
                         .fillMaxWidth()
                         .testTag("restart_from_scratch_button")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        tint = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A),
-                        modifier = Modifier.size(17.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "محاولة جديدة مجاناً (5 محاولات)",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        ),
-                        textAlign = TextAlign.Center,
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(vertical = 4.dp)
-                    )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A),
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "محاولة جديدة بوضع أصعب مجاناً (5 محاولات)",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                ),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "توليد لوحة جديدة بتعقيد وتحدٍّ أعلى 🔥",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = if (isDark) Color(0xFFFFB74D) else Color(0xFF8C4A15),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
