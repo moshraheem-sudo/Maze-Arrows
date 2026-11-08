@@ -877,9 +877,9 @@ private fun DrawScope.finishDrawingArrowPaths(
             val ctrlAdvX = tipX - dx * (tipAdvance * 0.35f)
             val ctrlAdvY = tipY - dy * (tipAdvance * 0.35f)
             headPath.moveTo(tipX, tipY)
-            headPath.quadraticBezierTo(ctrlAdvX + perpX * (wingHalfWidth * 0.85f), ctrlAdvY + perpY * (wingHalfWidth * 0.85f), leftWingX, leftWingY)
+            headPath.quadraticTo(ctrlAdvX + perpX * (wingHalfWidth * 0.85f), ctrlAdvY + perpY * (wingHalfWidth * 0.85f), leftWingX, leftWingY)
             headPath.lineTo(rightWingX, rightWingY)
-            headPath.quadraticBezierTo(ctrlAdvX - perpX * (wingHalfWidth * 0.85f), ctrlAdvY - perpY * (wingHalfWidth * 0.85f), tipX, tipY)
+            headPath.quadraticTo(ctrlAdvX - perpX * (wingHalfWidth * 0.85f), ctrlAdvY - perpY * (wingHalfWidth * 0.85f), tipX, tipY)
             headPath.close()
         }
         ArrowTipStyle.HARPOON_BARB -> {

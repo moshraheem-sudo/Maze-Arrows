@@ -24,9 +24,9 @@ class GameRepository(private val dao: GameProgressDao) {
                     highestUnlockedLevel = 1,
                     currentActiveLevel = 1,
                     playerDnaSeed = uniquePlayerSeed,
-                    totalScore = 350,
+                    totalScore = 60,
                     totalStars = 0,
-                    hintsBalance = 10,
+                    hintsBalance = 3,
                     themeMode = "LIGHT"
                 )
             )
@@ -37,6 +37,9 @@ class GameRepository(private val dao: GameProgressDao) {
                     isCompleted = false
                 )
             )
+        } else if (currentProfile.totalScore > 150) {
+            // Automatically rebalance legacy inflated test balance (>150 pts) to disciplined economy (80 pts)
+            dao.upsertPlayerProfile(currentProfile.copy(totalScore = 80))
         }
     }
 
@@ -309,31 +312,31 @@ class GameRepository(private val dao: GameProgressDao) {
          * Starts at 80 points and increases progressively with each purchase completed by the user.
          */
         fun computeUnlockToolsCost(totalPurchasesCount: Int): Int {
-            return 80 + (totalPurchasesCount.coerceAtLeast(0) * 55)
+            return 50 + (totalPurchasesCount.coerceAtLeast(0) * 25)
         }
 
         /**
          * Dynamic escalating cost for purchasing +5 Extra Attempts (شراء 5 محاولات إضافية):
-         * Starts at 90 points and increases progressively with each purchase completed by the user.
+         * Starts at 40 points and increases progressively with each purchase completed by the user.
          */
         fun computeExtraAttemptsCost(totalPurchasesCount: Int): Int {
-            return 90 + (totalPurchasesCount.coerceAtLeast(0) * 60)
+            return 40 + (totalPurchasesCount.coerceAtLeast(0) * 20)
         }
 
         /**
          * Dynamic escalating cost for purchasing +60s Extra Time:
-         * Starts at 100 points and increases progressively with each purchase completed by the user.
+         * Starts at 35 points and increases progressively with each purchase completed by the user.
          */
         fun computeExtraTimeCost(totalPurchasesCount: Int): Int {
-            return 100 + (totalPurchasesCount.coerceAtLeast(0) * 65)
+            return 35 + (totalPurchasesCount.coerceAtLeast(0) * 15)
         }
 
         /**
          * Dynamic escalating cost for purchasing "Stay in Specific Mode" (تثبيت وضع معين):
-         * Starts at 150 points and increases progressively with each purchase completed by the user.
+         * Starts at 75 points and increases progressively with each purchase completed by the user.
          */
         fun computeStayInModeCost(totalPurchasesCount: Int): Int {
-            return 150 + (totalPurchasesCount.coerceAtLeast(0) * 85)
+            return 75 + (totalPurchasesCount.coerceAtLeast(0) * 30)
         }
 
         fun parseRecentPurchaseTimestamps(csv: String, nowMs: Long = System.currentTimeMillis()): List<Long> {

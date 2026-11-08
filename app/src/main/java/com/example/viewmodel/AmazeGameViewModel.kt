@@ -661,7 +661,10 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         when (moveResult) {
             is MoveCheckResult.Clear -> {
                 val newCombo = state.comboCount + 1
-                val pointsEarned = 25 * newCombo + tappedArrow.length * 4
+                val comboBonus = if (newCombo >= 4) 1 else 0
+                val isGoldenArrow = tappedArrow.colorAccentIndex == 1
+                val goldenBonus = if (isGoldenArrow) 1 else 0
+                val totalPointsEarned = 1 + comboBonus + goldenBonus
                 val updatedRemaining = state.remainingArrows.filterNot { it.id == arrowId }
                 val escapingItem = EscapingArrowState(
                     arrow = tappedArrow,
@@ -671,10 +674,6 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
 
                 soundManager.playArrowEscape(newCombo)
 
-                val isGoldenArrow = tappedArrow.colorAccentIndex == 1
-                val arrowBonus = if (isGoldenArrow) 35 else 0
-                val totalPointsEarned = pointsEarned + arrowBonus
-
                 // Credit earned points immediately to the player's spendable balance
                 if (!state.usedAutoSolveInCurrentLevel) {
                     viewModelScope.launch(Dispatchers.IO) {
@@ -683,7 +682,7 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 }
 
                 val encouragement = when {
-                    isGoldenArrow -> "⭐ أحسنت! سهم ذهبي (+35 نقطة إضافية)"
+                    isGoldenArrow -> "⭐ أحسنت! سهم مميز (+نقطة إضافية)"
                     newCombo == 3 -> "أبدعت! سلسلة متتالية 🔥"
                     newCombo == 5 -> "نصر مذهل! حركة عبقرية ⚡"
                     newCombo == 8 -> "رائع جداً! استراتيجية متقنة 🎯"
@@ -1502,7 +1501,7 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 else -> 1
             }
         }
-        val lifeBonus = if (state.usedAutoSolveInCurrentLevel) 0 else state.livesRemaining * 120
+        val lifeBonus = if (state.usedAutoSolveInCurrentLevel) 0 else state.livesRemaining * 2
         val finalScore = if (state.usedAutoSolveInCurrentLevel) 0 else state.currentLevelScore + lifeBonus
 
         soundManager.playVictoryFanfare()

@@ -1,8 +1,17 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -314,43 +323,7 @@ fun MainMenuScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Security & Privacy Shield Guarantee Banner
-            Surface(
-                onClick = onOpenSecurityShield,
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF10B981).copy(alpha = if (themePalette.isDark) 0.16f else 0.10f),
-                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("menu_security_badge")
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = null,
-                        tint = Color(0xFF10B981),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "🛡️ درع أمان وحديدي: منع سحب أي بيانات من الهاتف بنسبة 100%",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.5.sp
-                        ),
-                        color = if (themePalette.isDark) Color(0xFF34D399) else Color(0xFF047857),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // 3. Hero Decorative Spiral Arrow Illustration Card
             Card(
@@ -445,159 +418,350 @@ fun MainMenuScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // 5. Interactive Points Shop Card (متجر النقاط التفاعلي)
+            var isExtraFeaturesExpanded by remember { mutableStateOf(false) }
+
+            // Foldable Extra Features Card (زر مطوي يفتح الأقسام الإضافية لتبسيط الواجهة)
             Card(
-                onClick = onOpenShop,
+                onClick = { isExtraFeaturesExpanded = !isExtraFeaturesExpanded },
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(1.dp, cardBorderColor, RoundedCornerShape(18.dp))
-                    .testTag("open_points_shop_button")
+                    .testTag("toggle_extra_features_button")
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "متجر النقاط التفاعلي (${profile.totalScore} نقطة)",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = primaryText
-                        )
-                        Text(
-                            text = "فتح التلميح والمسار والحل التلقائي فوراً أو وقت إضافي",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = secondaryText
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0xFFD9822B).copy(alpha = 0.22f),
-                        modifier = Modifier.size(40.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.ShoppingCart,
-                                contentDescription = null,
-                                tint = if (themePalette.isDark) Color(0xFFFFB74D) else Color(0xFFB36A22)
+                        Surface(
+                            shape = CircleShape,
+                            color = if (themePalette.isDark) Color(0xFF334155) else Color(0xFFF0E5D4),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = if (themePalette.isDark) Color(0xFFFFB74D) else Color(0xFFB36A22),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = "خيارات وقوائم اللعب الإضافية",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = primaryText
+                            )
+                            Text(
+                                text = if (isExtraFeaturesExpanded) "اضغط للطي وإخفاء القوائم" else "المتجر، المراحل، والمختبر الذكي",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.5.sp
+                                ),
+                                color = secondaryText
                             )
                         }
                     }
+                    Icon(
+                        imageVector = if (isExtraFeaturesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExtraFeaturesExpanded) "طي" else "توسيع",
+                        tint = primaryText,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Previous Passed Levels Quick-Return Card
-            Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = cardColor),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, cardBorderColor, RoundedCornerShape(18.dp))
+            AnimatedVisibility(
+                visible = isExtraFeaturesExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .padding(top = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    // 5. Interactive Points Shop Card (متجر النقاط التفاعلي)
+                    Card(
+                        onClick = onOpenShop,
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, cardBorderColor, RoundedCornerShape(18.dp))
+                            .testTag("open_points_shop_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = null,
-                            tint = if (themePalette.isDark) Color(0xFFFFB74D) else Color(0xFFB36A22),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "المستويات المفتوحة (المستوى 1 إلى المستوى ${profile.highestUnlockedLevel})",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = primaryText
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    val unlockedList = remember(profile.highestUnlockedLevel) {
-                        (1..profile.highestUnlockedLevel).toList()
-                    }
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(unlockedList, key = { it }) { lvl ->
-                            OutlinedButton(
-                                onClick = { onContinueLevel(lvl) },
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
-                                modifier = Modifier.testTag("quick_unlocked_level_$lvl")
-                            ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = if (lvl < profile.highestUnlockedLevel) "المستوى $lvl ✓" else "المستوى $lvl ▶",
-                                    style = MaterialTheme.typography.labelLarge.copy(
+                                    text = "متجر النقاط التفاعلي (${profile.totalScore} نقطة)",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = primaryText
+                                )
+                                Text(
+                                    text = "فتح التلميح والمسار والحل التلقائي فوراً أو وقت إضافي",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
                                         fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = secondaryText
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFD9822B).copy(alpha = 0.22f),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.ShoppingCart,
+                                        contentDescription = null,
+                                        tint = if (themePalette.isDark) Color(0xFFFFB74D) else Color(0xFFB36A22)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Previous Passed Levels Quick-Return Card
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardColor),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, cardBorderColor, RoundedCornerShape(18.dp))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = null,
+                                    tint = if (themePalette.isDark) Color(0xFFFFB74D) else Color(0xFFB36A22),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "المستويات المفتوحة (المستوى 1 إلى المستوى ${profile.highestUnlockedLevel})",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold
                                     ),
                                     maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                     color = primaryText
                                 )
                             }
-                        }
 
-                        item(key = "locked_next") {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (themePalette.isDark) Color(0xFF283246) else Color(0xFFEDE0CA),
-                                modifier = Modifier.border(
-                                    width = 1.dp,
-                                    color = cardBorderColor,
-                                    shape = RoundedCornerShape(10.dp)
-                                )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val unlockedList = remember(profile.highestUnlockedLevel) {
+                                (1..profile.highestUnlockedLevel).toList()
+                            }
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
+                                items(unlockedList, key = { it }) { lvl ->
+                                    OutlinedButton(
+                                        onClick = { onContinueLevel(lvl) },
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
+                                        modifier = Modifier.testTag("quick_unlocked_level_$lvl")
+                                    ) {
+                                        Text(
+                                            text = if (lvl < profile.highestUnlockedLevel) "المستوى $lvl ✓" else "المستوى $lvl ▶",
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            ),
+                                            maxLines = 1,
+                                            color = primaryText
+                                        )
+                                    }
+                                }
+
+                                item(key = "locked_next") {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (themePalette.isDark) Color(0xFF283246) else Color(0xFFEDE0CA),
+                                        modifier = Modifier.border(
+                                            width = 1.dp,
+                                            color = cardBorderColor,
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Lock,
+                                                contentDescription = "مقفل",
+                                                tint = secondaryText,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Text(
+                                                text = "المستوى ${profile.highestUnlockedLevel + 1}",
+                                                style = MaterialTheme.typography.labelLarge.copy(
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                ),
+                                                maxLines = 1,
+                                                color = secondaryText
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Level Select (500 Progressive Levels across 5 Tiers)
+                    Card(
+                        onClick = onOpenLevelSelect,
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, cardBorderColor, RoundedCornerShape(18.dp))
+                            .testTag("open_level_select_button")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "خريطة المراحل (500 مرحلة)",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = primaryText
+                                )
+                                Text(
+                                    text = "تدرج تلقائي في الصعوبة مع حفظ التقدم",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = secondaryText
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFF3A833).copy(alpha = 0.22f),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = Icons.Default.Lock,
-                                        contentDescription = "مقفل",
-                                        tint = secondaryText,
-                                        modifier = Modifier.size(13.dp)
+                                        imageVector = Icons.Default.GridView,
+                                        contentDescription = null,
+                                        tint = if (themePalette.isDark) Color(0xFFFFCA28) else Color(0xFFB36A22)
                                     )
-                                    Text(
-                                        text = "المستوى ${profile.highestUnlockedLevel + 1}",
-                                        style = MaterialTheme.typography.labelLarge.copy(
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        ),
-                                        maxLines = 1,
-                                        color = secondaryText
+                                }
+                            }
+                        }
+                    }
+
+                    // Smart Generator & Solver Studio (Clean Professional Title)
+                    Card(
+                        onClick = onOpenCustomGenerator,
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, cardBorderColor, RoundedCornerShape(18.dp))
+                            .testTag("open_custom_generator_button")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "مختبر التوليد الذكي",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = primaryText
+                                )
+                                Text(
+                                    text = "توليد مراحل مخصصة مع فحص الحل",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = secondaryText
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFF7B1FA2).copy(alpha = if (themePalette.isDark) 0.28f else 0.16f),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = if (themePalette.isDark) Color(0xFFCE93D8) else Color(0xFF7B1FA2)
                                     )
                                 }
                             }
@@ -606,123 +770,43 @@ fun MainMenuScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Level Select (500 Progressive Levels across 5 Tiers)
-            Card(
-                onClick = onOpenLevelSelect,
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = cardColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            // Security & Privacy Shield Guarantee Banner (At the very bottom as requested)
+            Surface(
+                onClick = onOpenSecurityShield,
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF10B981).copy(alpha = if (themePalette.isDark) 0.16f else 0.10f),
+                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, cardBorderColor, RoundedCornerShape(18.dp))
-                    .testTag("open_level_select_button")
+                    .testTag("menu_security_badge")
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "خريطة المراحل (500 مرحلة)",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = primaryText
-                        )
-                        Text(
-                            text = "تدرج تلقائي في الصعوبة مع حفظ التقدم",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = secondaryText
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0xFFF3A833).copy(alpha = 0.22f),
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.GridView,
-                                contentDescription = null,
-                                tint = if (themePalette.isDark) Color(0xFFFFCA28) else Color(0xFFB36A22)
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = null,
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "🛡️ درع أمان وحديدي: منع سحب أي بيانات من الهاتف بنسبة 100%",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp
+                        ),
+                        color = if (themePalette.isDark) Color(0xFF34D399) else Color(0xFF047857),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Smart Generator & Solver Studio (Clean Professional Title)
-            Card(
-                onClick = onOpenCustomGenerator,
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = cardColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, cardBorderColor, RoundedCornerShape(18.dp))
-                    .testTag("open_custom_generator_button")
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "مختبر التوليد الذكي",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = primaryText
-                        )
-                        Text(
-                            text = "توليد مراحل مخصصة مع فحص الحل",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = secondaryText
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0xFF7B1FA2).copy(alpha = if (themePalette.isDark) 0.28f else 0.16f),
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = if (themePalette.isDark) Color(0xFFCE93D8) else Color(0xFF7B1FA2)
-                            )
-                        }
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
