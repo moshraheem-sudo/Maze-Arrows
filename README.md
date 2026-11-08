@@ -1,6 +1,6 @@
-# 🎯 Maze Arrows — ألغاز المسارات المتشابكة الذكية (v1.10)
+# 🎯 Maze Arrows — ألغاز المسارات المتشابكة الذكية (v1.40)
 
-[![Version](https://img.shields.io/badge/Version-1.10-blue.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
+[![Version](https://img.shields.io/badge/Version-1.40-blue.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
 [![Security](https://img.shields.io/badge/Security-Zero--Data--Extraction-success.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
 [![Developer](https://img.shields.io/badge/Developer-محمد%20شهيد%20رحيم-orange.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
@@ -11,7 +11,7 @@
 
 ## 👨‍💻 بيانات المطور (Developer Info)
 - **اسم المطور:** محمد شهيد رحيم (Mohammed Shaheed Raheem)
-- **الإصدار الحالي:** `v1.10` (كود الإصدار: `110`)
+- **الإصدار الحالي:** `v1.40` (كود الإصدار: `140`)
 - **المستودع الرسمي على GitHub:** [https://github.com/moshraheem-sudo/Maze-Arrows](https://github.com/moshraheem-sudo/Maze-Arrows)
 
 ---
