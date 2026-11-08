@@ -1,6 +1,8 @@
 {
   "name": "Maze Arrows",
-  "description": "لعبة ألغاز المسارات والأسهم المتشابكة الذكية Maze Arrows مع خوارزمية البناء العكسي وفاحص الحلول",
+  "description": "لعبة ألغاز الأسهم المتعرجة المستوحاة من Amaze GO مع مئات المراحل وخوارزمية توليد ذكية وSolver ونظام حماية وخصوصية حديدي v1.10",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
