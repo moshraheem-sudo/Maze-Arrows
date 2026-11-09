@@ -1,6 +1,6 @@
-# 🎯 Maze Arrows — ألغاز المسارات المتشابكة الذكية (v1.40)
+# 🎯 Maze Arrows — ألغاز المسارات المتشابكة الذكية (v1.70)
 
-[![Version](https://img.shields.io/badge/Version-1.40-blue.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
+[![Version](https://img.shields.io/badge/Version-1.70-blue.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
 [![Security](https://img.shields.io/badge/Security-Zero--Data--Extraction-success.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
 [![Developer](https://img.shields.io/badge/Developer-محمد%20شهيد%20رحيم-orange.svg)](https://github.com/moshraheem-sudo/Maze-Arrows)
@@ -11,7 +11,7 @@
 
 ## 👨‍💻 بيانات المطور (Developer Info)
 - **اسم المطور:** محمد شهيد رحيم (Mohammed Shaheed Raheem)
-- **الإصدار الحالي:** `v1.40` (كود الإصدار: `140`)
+- **الإصدار الحالي:** `v1.70.0` (كود الإصدار: `1700`)
 - **المستودع الرسمي على GitHub:** [https://github.com/moshraheem-sudo/Maze-Arrows](https://github.com/moshraheem-sudo/Maze-Arrows)
 
 ---
@@ -59,7 +59,7 @@
 - **شاشة إعدادات كاملة النافذة** تحترم شريط التنقل للموبايل.
 
 ### 6. ☁️ التحديث والتنزيل المباشر بالميجابايت (MB) داخل التطبيق عبر GitHub
-- فحص الإصدار المثبّت (`v1.10`) ومقارنته مع مستودع GitHub وتنزيله بالميجابايت مع شريط تقدم حي والتثبيت المباشر.
+- فحص الإصدار المثبّت (`v1.70.0`) ومقارنته مع مستودع GitHub وتنزيله بالميجابايت مع شريط تقدم حي والتثبيت المباشر.
 
 ---
 
@@ -68,7 +68,7 @@
 1. ارفع ملفات المشروع وملف **`MazeArrows.apk`** إلى المستودع:
    `https://github.com/moshraheem-sudo/Maze-Arrows`
 2. ادخل إلى قسم **Releases** ثم اضغط **Create a new release**.
-3. اكتب رقم الإصدار في خانة **Tag version** (`v1.10`).
+3. اكتب رقم الإصدار في خانة **Tag version** (`v1.70.0`).
 4. أرفق ملف **`MazeArrows.apk`** ضمن خانة **Attach binaries (Assets)** ثم اضغط **Publish release**.
 5. سيتعرف التطبيق تلقائياً على الإصدار الجديد ويقوم بتنزيله بالميجابايت وتثبيته مباشرة من داخل شاشة الإعدادات.
 

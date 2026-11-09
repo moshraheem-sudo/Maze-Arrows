@@ -1,6 +1,6 @@
 {
-  "name": "Maze Arrows v1.40",
-  "description": "لعبة ألغاز الأسهم المتعرجة المستوحاة من Amaze GO مع مئات المراحل وخوارزمية توليد ذكية وSolver",
+  "name": "Maze Arrows",
+  "description": "لعبة ألغاز الأسهم المتعرجة الذكية v1.70 مع أوضاع اللعب التكتيكية العكسية وخوارزمية التوليد الذكي ودرع الأمان",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
