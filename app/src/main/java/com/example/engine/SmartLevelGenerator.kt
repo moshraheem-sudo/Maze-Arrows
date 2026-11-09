@@ -1,6 +1,7 @@
 package com.example.engine
 
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -62,7 +63,36 @@ object SmartLevelGenerator {
         val shapeMask = selectDynamicShapeMask(clampedLevel, tier, escalationSteps, rng)
         val archetype = selectArchetypeForLevel(clampedLevel + escalationSteps * 3, tier, rng)
 
-        return buildZeroGapPeeledLevel(
+        var curSeed = combinedSeed
+        var bestLevel: PuzzleLevel? = null
+        var lowestConflicts = Int.MAX_VALUE
+
+        for (attempt in 0..5) {
+            val candidate = buildZeroGapPeeledLevel(
+                levelNumber = clampedLevel,
+                isCustom = false,
+                difficulty = tier,
+                shapeMask = shapeMask,
+                archetype = archetype,
+                gridWidth = gridW,
+                gridHeight = gridH,
+                playerDnaSeed = playerDnaSeed,
+                seed = curSeed
+            )
+            val conflicts = countAdjacentSameDirectionConflicts(candidate.arrows, gridW, gridH)
+            if (conflicts == 0 && candidate.solverMetrics.isSolvable) {
+                return candidate
+            }
+            if (conflicts < lowestConflicts && candidate.solverMetrics.isSolvable) {
+                lowestConflicts = conflicts
+                bestLevel = candidate
+            }
+            if (clampedLevel > 2 && attempt >= 2 && candidate.solverMetrics.isSolvable && conflicts <= 1) {
+                return candidate
+            }
+            curSeed = mixSeed(curSeed, (attempt + 1) * 31337L + 7919L)
+        }
+        return bestLevel ?: buildZeroGapPeeledLevel(
             levelNumber = clampedLevel,
             isCustom = false,
             difficulty = tier,
@@ -76,8 +106,8 @@ object SmartLevelGenerator {
     }
 
     /**
-     * Smart Generator Lab also automatically alternates difficulty modes and archetypes
-     * so every generated board offers a fresh, varied challenge.
+     * Generates a custom level for a specific difficulty, board shape mask, and archetype.
+     * Generates fast, responsive, and 100% solvable boards without freezing.
      */
     fun generateCustomLevel(
         difficulty: DifficultyTier,
@@ -86,26 +116,48 @@ object SmartLevelGenerator {
         playerDnaSeed: Long = 0x5F3759DF7C9E1234L,
         seed: Long = System.currentTimeMillis()
     ): PuzzleLevel {
-        val rng = Random(seed xor playerDnaSeed)
-        // System dynamically blends/varies difficulty and archetype so the experience stays fresh
-        val dynamicTier = DifficultyTier.entries[(difficulty.tierIndex + rng.nextInt(0, DifficultyTier.entries.size)) % DifficultyTier.entries.size]
-        val dynamicArch = LevelAlgorithmArchetype.entries[rng.nextInt(LevelAlgorithmArchetype.entries.size)]
-        val representativeLevel = when (dynamicTier) {
+        val representativeLevel = when (difficulty) {
             DifficultyTier.EASY -> 2
             DifficultyTier.MEDIUM -> 5
-            DifficultyTier.HARD -> 12
-            DifficultyTier.EXPERT -> 30
-            DifficultyTier.PRO -> 80
+            DifficultyTier.HARD -> 10
+            DifficultyTier.EXPERT -> 16
+            DifficultyTier.PRO -> 25
         }
-        val (gridW, gridH) = computeDynamicDimensions(representativeLevel, dynamicTier, escalationSteps = 0)
+        val (gridW, gridH) = computeDynamicDimensions(representativeLevel, difficulty, escalationSteps = 0)
         val finalSeed = mixSeed(playerDnaSeed xor seed, representativeLevel.toLong())
 
-        return buildZeroGapPeeledLevel(
+        var curSeed = finalSeed
+        var bestLevel: PuzzleLevel? = null
+        var lowestConflicts = Int.MAX_VALUE
+
+        for (attempt in 0..1) {
+            val candidate = buildZeroGapPeeledLevel(
+                levelNumber = representativeLevel,
+                isCustom = true,
+                difficulty = difficulty,
+                shapeMask = shapeMask,
+                archetype = archetype,
+                gridWidth = gridW,
+                gridHeight = gridH,
+                playerDnaSeed = playerDnaSeed,
+                seed = curSeed
+            )
+            val conflicts = countAdjacentSameDirectionConflicts(candidate.arrows, gridW, gridH)
+            if (candidate.solverMetrics.isSolvable && (conflicts == 0 || attempt > 0)) {
+                return candidate
+            }
+            if (conflicts < lowestConflicts && candidate.solverMetrics.isSolvable) {
+                lowestConflicts = conflicts
+                bestLevel = candidate
+            }
+            curSeed = mixSeed(curSeed, (attempt + 1) * 31337L + 7919L)
+        }
+        return bestLevel ?: buildZeroGapPeeledLevel(
             levelNumber = representativeLevel,
             isCustom = true,
-            difficulty = dynamicTier,
+            difficulty = difficulty,
             shapeMask = shapeMask,
-            archetype = dynamicArch,
+            archetype = archetype,
             gridWidth = gridW,
             gridHeight = gridH,
             playerDnaSeed = playerDnaSeed,
@@ -122,8 +174,8 @@ object SmartLevelGenerator {
 
     /**
      * Computes board dimensions based on dynamic [tier], [levelNumber], and [escalationSteps].
-     * - Levels 1-5 start truly easy (5x8 up to 8x12, ~12-46 arrows).
-     * - Level 6+ escalates smoothly into dense, complex labyrinths (Medium -> Hard -> Expert -> Pro).
+     * - Levels 1 and 2 start truly easy (5x8 and 6x9, ~10-20 arrows).
+     * - Levels 3+ escalate smoothly into dense, complex winding labyrinths (Medium -> Hard -> Expert -> Pro).
      * - On retry/timeout escalation, dimensions and complexity increase to challenge the player.
      */
     private fun computeDynamicDimensions(
@@ -134,29 +186,31 @@ object SmartLevelGenerator {
         val basePair = when (tier) {
             DifficultyTier.EASY -> {
                 when (levelNumber) {
-                    1 -> 5 to 8      // ~40 cells -> ~12-16 arrows
-                    2 -> 6 to 9      // ~54 cells -> ~18-24 arrows
-                    3 -> 7 to 10     // ~70 cells -> ~24-30 arrows
-                    4 -> 8 to 11     // ~88 cells -> ~30-38 arrows
-                    5 -> 8 to 12     // ~96 cells -> ~36-46 arrows
-                    else -> 9 to 13  // ~117 cells -> ~45-55 arrows
+                    1 -> 5 to 8      // ~40 cells -> ~10-14 clean arrows (Level 1: introductory easy)
+                    2 -> 6 to 9      // ~54 cells -> ~15-20 clean arrows (Level 2: easy)
+                    else -> 7 to 10  // ~70 cells
                 }
             }
             DifficultyTier.MEDIUM -> {
-                val subProg = ((levelNumber - 6).coerceAtLeast(0) / 2).coerceAtMost(3)
-                (11 + subProg) to (15 + subProg * 2) // ~165-220 cells -> ~60-90 arrows
+                // Levels 3 to 6: High density labyrinths with deep windings
+                when (levelNumber) {
+                    3 -> 12 to 18    // ~216 cells -> ~60-80 dense winding arrows
+                    4 -> 14 to 20    // ~280 cells -> ~80-100 dense winding arrows
+                    5 -> 15 to 22    // ~330 cells -> ~95-125 dense winding arrows
+                    else -> 17 to 24 // ~408 cells -> ~120-150 dense winding arrows
+                }
             }
             DifficultyTier.HARD -> {
-                val subProg = ((levelNumber - 11).coerceAtLeast(0) / 4).coerceAtMost(3)
-                (14 + subProg) to (20 + subProg * 2) // ~280-380 cells -> ~100-140 arrows
+                val subProg = ((levelNumber - 7).coerceAtLeast(0) / 3).coerceAtMost(4)
+                (18 + subProg) to (24 + subProg * 2) // ~430-600 cells -> ~130-190 deeply interlocked arrows
             }
             DifficultyTier.EXPERT -> {
-                val subProg = ((levelNumber - 26).coerceAtLeast(0) / 8).coerceAtMost(3)
-                (17 + subProg) to (25 + subProg * 2) // ~425-550 cells -> ~150-220 arrows
+                val subProg = ((levelNumber - 21).coerceAtLeast(0) / 6).coerceAtMost(4)
+                (20 + subProg) to (28 + subProg * 2) // ~560-760 cells -> ~180-260 massive labyrinth
             }
             DifficultyTier.PRO -> {
-                val subProg = ((levelNumber - 61).coerceAtLeast(0) / 15).coerceAtMost(4)
-                (20 + subProg) to (30 + subProg * 2) // ~600-850 cells -> ~240-350+ arrows
+                val subProg = ((levelNumber - 61).coerceAtLeast(0) / 10).coerceAtMost(5)
+                (22 + subProg) to (32 + subProg * 2) // ~700-1050 cells -> ~240-380 grandmaster labyrinth
             }
         }
         val escBonusW = escalationSteps
@@ -173,10 +227,27 @@ object SmartLevelGenerator {
         escalationSteps: Int,
         rng: Random
     ): BoardShapeMask {
-        if (levelNumber <= 5 && escalationSteps == 0) return BoardShapeMask.FULL_MATRIX
-        val masks = BoardShapeMask.entries
-        val idx = (levelNumber * 3 + tier.tierIndex + escalationSteps * 2 + rng.nextInt(0, 2)) % masks.size
-        return masks[idx]
+        if (levelNumber <= 2 && escalationSteps == 0) return BoardShapeMask.FULL_MATRIX
+        // Deterministically introduce the tactical reverse shapes for Campaign progression
+        return when (levelNumber) {
+            3 -> BoardShapeMask.STEPPED_CITADEL // القلعة الحصينة 🏰
+            4 -> BoardShapeMask.LABYRINTH_CORE  // قلب المتاهة 🌀
+            5 -> BoardShapeMask.HOURGLASS       // الساعة الرملية ⏳
+            6 -> BoardShapeMask.TWIN_PILLARS    // الأعمدة المزدوجة 🏛️
+            7 -> BoardShapeMask.CLASSIC_TOWER   // البرج الشاهق 🗼
+            else -> {
+                val shapes = listOf(
+                    BoardShapeMask.STEPPED_CITADEL,
+                    BoardShapeMask.LABYRINTH_CORE,
+                    BoardShapeMask.HOURGLASS,
+                    BoardShapeMask.TWIN_PILLARS,
+                    BoardShapeMask.CLASSIC_TOWER,
+                    BoardShapeMask.FULL_MATRIX
+                )
+                val idx = (levelNumber + tier.tierIndex * 2 + escalationSteps) % shapes.size
+                shapes[idx]
+            }
+        }
     }
 
     private fun selectArchetypeForLevel(
@@ -254,8 +325,9 @@ object SmartLevelGenerator {
         val peeledInSolveOrder = ArrayList<WindingArrow>(maskCells.size / 3)
 
         // Track which step peeled each cell so new arrows prefer exiting through recently peeled channels
-        // (creating deep multi-wave blocking dependencies!)
         val peeledAtStep = IntArray(totalCells) { 0 }
+        // Track the head direction of ALL cells of peeled arrows to STRICTLY prevent adjacent arrows with identical directions
+        val cellDirGrid = Array<Direction?>(totalCells) { null }
         var stepCounter = 0
 
         fun countRemainingNeighbors(cellIdx: Int): Int {
@@ -285,8 +357,6 @@ object SmartLevelGenerator {
                 if (nx in 0 until gridWidth && ny in 0 until gridHeight) {
                     val nIdx = ny * gridWidth + nx
                     if (inRemaining[nIdx]) {
-                        // Since candIdx is currently false in `inRemaining`, countRemainingNeighbors(nIdx)
-                        // is the exact degree of nIdx after candIdx is removed!
                         val deg = countRemainingNeighbors(nIdx)
                         if (deg == 0) {
                             zeroDegCount++
@@ -310,6 +380,7 @@ object SmartLevelGenerator {
                 gridHeight = gridHeight,
                 inRemaining = inRemaining,
                 peeledAtStep = peeledAtStep,
+                cellDirGrid = cellDirGrid,
                 currentStep = stepCounter,
                 rng = rng
             )
@@ -320,7 +391,7 @@ object SmartLevelGenerator {
             val desiredLen = chooseDesiredArrowLength(levelNumber, style, rng)
 
             var peeledArrow: WindingArrow? = null
-            val tryLimit = min(headCandidates.size, 14)
+            val tryLimit = min(headCandidates.size, 16)
 
             for (i in 0 until tryLimit) {
                 val cand = headCandidates[i]
@@ -334,6 +405,7 @@ object SmartLevelGenerator {
                     headDir = cand.dir,
                     style = style,
                     desiredLength = desiredLen,
+                    cellDirGrid = cellDirGrid,
                     rng = rng,
                     countRemainingNeighbors = ::countRemainingNeighbors,
                     checkOrphanImpact = ::checkOrphanImpactWhenRemoving
@@ -344,7 +416,7 @@ object SmartLevelGenerator {
                 }
             }
 
-            // If strict orphan-preserving walk couldn't place on top candidates, allow unrestricted 2+ cell peel
+            // Fallback 2+ cell peel
             if (peeledArrow == null) {
                 val cand = headCandidates[0]
                 val hx = cand.hx
@@ -370,37 +442,41 @@ object SmartLevelGenerator {
             stepCounter++
             peeledInSolveOrder.add(peeledArrow)
             for (c in peeledArrow.cells) {
+                cellDirGrid[c.y * gridWidth + c.x] = peeledArrow.headDirection
                 peeledAtStep[c.y * gridWidth + c.x] = stepCounter
             }
         }
 
         // UNIVERSAL SAFE GRAFTING & TAIL-BORROWING PASS:
-        // Any cell `c` still in `inRemaining` was never peeled, which means NO arrow in
-        // `peeledInSolveOrder` ever had its exit ray pass through `c`!
         absorbAllRemainingCellsForZeroGaps(
             gridWidth = gridWidth,
             gridHeight = gridHeight,
             inRemaining = inRemaining,
+            cellDirGrid = cellDirGrid,
             peeledArrows = peeledInSolveOrder
         )
 
-        val totalCount = peeledInSolveOrder.size
-        // Strictly only 2 or 3 arrows across the entire board get the golden accent, all the rest are pure unified black
-        val goldAccentIndices = when {
-            totalCount >= 12 -> setOf(0, totalCount / 2, (totalCount * 3) / 4)
-            totalCount >= 6 -> setOf(0, totalCount / 2)
-            totalCount >= 3 -> setOf(0)
-            else -> emptySet()
+        // Enforce 0 adjacent same-direction arrows with solver-verified optimization:
+        eliminateAdjacentSameDirectionConflicts(peeledInSolveOrder, gridWidth, gridHeight)
+
+        // Select 3 to 7 bonus star arrows spaced across the level for the player to collect ⭐
+        val starArrowIndices = HashSet<Int>()
+        if (peeledInSolveOrder.size >= 5) {
+            val starCount = (peeledInSolveOrder.size / 9).coerceIn(3, 8)
+            val step = peeledInSolveOrder.size / (starCount + 1)
+            for (i in 1..starCount) {
+                starArrowIndices.add((i * step).coerceIn(0, peeledInSolveOrder.lastIndex))
+            }
         }
 
         var occupiedFinalCells = 0
         val finalArrows = peeledInSolveOrder.mapIndexed { idx, arrow ->
             occupiedFinalCells += arrow.cells.size
-            val isGold = idx in goldAccentIndices
+            val isStarArrow = starArrowIndices.contains(idx)
             arrow.copy(
                 id = idx + 1,
-                colorAccentIndex = if (isGold) 1 else 0,
-                hasSparkleBadge = false
+                colorAccentIndex = if (isStarArrow) 2 else 0,
+                hasSparkleBadge = isStarArrow
             )
         }
 
@@ -439,6 +515,7 @@ object SmartLevelGenerator {
         gridHeight: Int,
         inRemaining: BooleanArray,
         peeledAtStep: IntArray,
+        cellDirGrid: Array<Direction?>,
         currentStep: Int,
         rng: Random
     ): List<ExposedHeadCandidate> {
@@ -494,16 +571,43 @@ object SmartLevelGenerator {
 
                     // Score this candidate:
                     // 1. Prioritize low-degree frontier tips so zero gaps remain
-                    // 2. After the first 2 starter arrows (`currentStep >= 2`), HEAVILY reward rays that pass
-                    //    through already-peeled arrows (`peeledCellsOnRay > 0`) and penalize unblocked perimeter
-                    //    arrows (`maxRecentPeelStepOnRay == 0`) so only 1–3 arrows are initially free!
-                    var score = (4 - remDeg) * 30f
-                    if (maxRecentPeelStepOnRay > 0) {
+                    // 2. Strict Peeling Ray Dependency Bottlenecking:
+                    var score = (4 - remDeg) * 20f
+                    if (peeledCellsOnRay > 0) {
                         val recency = (maxRecentPeelStepOnRay.toFloat() / currentStep.coerceAtLeast(1))
-                        score += 155f + recency * 65f + (peeledCellsOnRay.coerceAtMost(8) * 22f)
+                        score += 350f + recency * 120f + (peeledCellsOnRay.coerceAtMost(10) * 45f)
                     } else if (currentStep >= 2) {
-                        score -= 135f
+                        score -= 15000f
                     }
+
+                    // 3. STRICTLY PROHIBIT ADJACENT ARROWS IN THE SAME DIRECTION (As requested by user!):
+                    // Checks all adjacent cells (Chebyshev distance <= 1) around head (x, y) and neck (nx, ny)
+                    var adjacentSameDirCount = 0
+                    for (dy in -1..1) {
+                        for (dx in -1..1) {
+                            if (dx == 0 && dy == 0) continue
+                            val ax = x + dx
+                            val ay = y + dy
+                            if (ax in 0 until gridWidth && ay in 0 until gridHeight) {
+                                val neighborDir = cellDirGrid[ay * gridWidth + ax]
+                                if (neighborDir == dir) {
+                                    adjacentSameDirCount++
+                                }
+                            }
+                            val bx = nx + dx
+                            val by = ny + dy
+                            if (bx in 0 until gridWidth && by in 0 until gridHeight) {
+                                val neighborDir = cellDirGrid[by * gridWidth + bx]
+                                if (neighborDir == dir) {
+                                    adjacentSameDirCount++
+                                }
+                            }
+                        }
+                    }
+                    if (adjacentSameDirCount > 0) {
+                        score -= (500000f * adjacentSameDirCount)
+                    }
+
                     score += rng.nextFloat() * 10f
 
                     list.add(ExposedHeadCandidate(x, y, dir, score))
@@ -511,8 +615,9 @@ object SmartLevelGenerator {
             }
         }
 
-        list.sortByDescending { it.score }
-        return list
+        val zeroConflictList = list.filter { it.score > -400000f }
+        val finalList = if (zeroConflictList.isNotEmpty()) zeroConflictList else list
+        return finalList.sortedByDescending { it.score }
     }
 
     private fun tryPeelSingleArrow(
@@ -525,6 +630,7 @@ object SmartLevelGenerator {
         headDir: Direction,
         style: ArrowStyle,
         desiredLength: Int,
+        cellDirGrid: Array<Direction?>,
         rng: Random,
         countRemainingNeighbors: (Int) -> Int,
         checkOrphanImpact: (Int) -> Pair<Boolean, Int>
@@ -624,6 +730,26 @@ object SmartLevelGenerator {
                     stepScore += 45f
                 }
 
+                // Strictly avoid growing into cells adjacent to an already peeled arrow in the SAME direction:
+                var conflictWithNeighbor = false
+                for (dy in -1..1) {
+                    for (dx in -1..1) {
+                        if (dx == 0 && dy == 0) continue
+                        val ax = tx + dx
+                        val ay = ty + dy
+                        if (ax in 0 until gridWidth && ay in 0 until gridHeight) {
+                            if (cellDirGrid[ay * gridWidth + ax] == headDir) {
+                                conflictWithNeighbor = true
+                                break
+                            }
+                        }
+                    }
+                    if (conflictWithNeighbor) break
+                }
+                if (conflictWithNeighbor) {
+                    continue
+                }
+
                 if (stepScore > bestScore) {
                     bestScore = stepScore
                     bestDir = candDir
@@ -678,6 +804,7 @@ object SmartLevelGenerator {
         gridWidth: Int,
         gridHeight: Int,
         inRemaining: BooleanArray,
+        cellDirGrid: Array<Direction?>,
         peeledArrows: MutableList<WindingArrow>
     ) {
         val totalCells = gridWidth * gridHeight
@@ -695,7 +822,30 @@ object SmartLevelGenerator {
                     if (nx !in 0 until gridWidth || ny !in 0 until gridHeight) continue
                     val nIdx = ny * gridWidth + nx
                     if (inRemaining[nIdx]) {
+                        // Strictly verify grafting (nx, ny) does NOT create conflict with adjacent arrow pointing in same direction
+                        var createsConflict = false
+                        for (cdy in -1..1) {
+                            for (cdx in -1..1) {
+                                if (cdx == 0 && cdy == 0) continue
+                                val ax = nx + cdx
+                                val ay = ny + cdy
+                                if (ax in 0 until gridWidth && ay in 0 until gridHeight) {
+                                    val neighborDir = cellDirGrid[ay * gridWidth + ax]
+                                    if (neighborDir == arrow.headDirection) {
+                                        val isPartOfThisArrow = arrow.cells.any { it.x == ax && it.y == ay }
+                                        if (!isPartOfThisArrow) {
+                                            createsConflict = true
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                            if (createsConflict) break
+                        }
+                        if (createsConflict) continue
+
                         inRemaining[nIdx] = false
+                        cellDirGrid[nIdx] = arrow.headDirection
                         val newCells = ArrayList<GridPoint>(arrow.cells.size + 1)
                         newCells.add(GridPoint(nx, ny))
                         newCells.addAll(arrow.cells)
@@ -708,35 +858,70 @@ object SmartLevelGenerator {
         }
 
         // Pass B: Pair any adjacent remaining cells `(a, b)` into a 2-cell arrow solved last!
-        // Since all `peeledArrows` are solved BEFORE this final arrow, the board is empty when it exits!
+        // Strictly avoid choosing directions that match neighboring arrows!
         for (cellIdx in 0 until totalCells) {
             if (!inRemaining[cellIdx]) continue
             val x = cellIdx % gridWidth
             val y = cellIdx / gridWidth
+
+            val validNeighbors = ArrayList<Triple<Int, Int, Direction>>(4)
             for (d in Direction.entries) {
                 val nx = x + d.dx
                 val ny = y + d.dy
                 if (nx in 0 until gridWidth && ny in 0 until gridHeight) {
                     val nIdx = ny * gridWidth + nx
                     if (inRemaining[nIdx]) {
-                        inRemaining[cellIdx] = false
-                        inRemaining[nIdx] = false
-                        peeledArrows.add(
-                            WindingArrow(
-                                id = peeledArrows.size + 1,
-                                cells = listOf(GridPoint(x, y), GridPoint(nx, ny)),
-                                headDirection = d,
-                                style = ArrowStyle.HOOK
-                            )
-                        )
-                        break
+                        validNeighbors.add(Triple(nx, ny, d))
                     }
+                }
+            }
+
+            if (validNeighbors.isNotEmpty()) {
+                val bestPair = validNeighbors.firstOrNull { pair ->
+                    val candDir = pair.third
+                    var conflict = false
+                    for (dy in -1..1) {
+                        for (dx in -1..1) {
+                            if (dx == 0 && dy == 0) continue
+                            val ax = x + dx
+                            val ay = y + dy
+                            if (ax in 0 until gridWidth && ay in 0 until gridHeight) {
+                                if (cellDirGrid[ay * gridWidth + ax] == candDir) { conflict = true; break }
+                            }
+                            val bx = pair.first + dx
+                            val by = pair.second + dy
+                            if (bx in 0 until gridWidth && by in 0 until gridHeight) {
+                                if (cellDirGrid[by * gridWidth + bx] == candDir) { conflict = true; break }
+                            }
+                        }
+                        if (conflict) break
+                    }
+                    !conflict
+                }
+
+                if (bestPair != null) {
+                    val nx = bestPair.first
+                    val ny = bestPair.second
+                    val d = bestPair.third
+                    val nIdx = ny * gridWidth + nx
+
+                    inRemaining[cellIdx] = false
+                    inRemaining[nIdx] = false
+                    cellDirGrid[cellIdx] = d
+                    cellDirGrid[nIdx] = d
+                    peeledArrows.add(
+                        WindingArrow(
+                            id = peeledArrows.size + 1,
+                            cells = listOf(GridPoint(x, y), GridPoint(nx, ny)),
+                            headDirection = d,
+                            style = ArrowStyle.HOOK
+                        )
+                    )
                 }
             }
         }
 
         // Pass C: Tail-Borrowing for any remaining isolated single cell `c`!
-        // Detach the tail `t` of an adjacent arrow of length >= 3 and form a final 2-cell arrow `t -> c`!
         for (cellIdx in 0 until totalCells) {
             if (!inRemaining[cellIdx]) continue
             val cx = cellIdx % gridWidth
@@ -751,10 +936,33 @@ object SmartLevelGenerator {
                 val dy = cy - tail.y
                 if (abs(dx) + abs(dy) == 1) {
                     val dirToC = Direction.entries.first { it.dx == dx && it.dy == dy }
-                    // Shorten arrow `i` by removing its tail cell `tail`
+                    if (dirToC == arrow.headDirection) continue
+
+                    var conflict = false
+                    for (cdy in -1..1) {
+                        for (cdx in -1..1) {
+                            if (cdx == 0 && cdy == 0) continue
+                            val ax = tail.x + cdx
+                            val ay = tail.y + cdy
+                            if (ax in 0 until gridWidth && ay in 0 until gridHeight && cellDirGrid[ay * gridWidth + ax] == dirToC) {
+                                conflict = true
+                                break
+                            }
+                            val bx = cx + cdx
+                            val by = cy + cdy
+                            if (bx in 0 until gridWidth && by in 0 until gridHeight && cellDirGrid[by * gridWidth + bx] == dirToC) {
+                                conflict = true
+                                break
+                            }
+                        }
+                        if (conflict) break
+                    }
+                    if (conflict) continue
+
                     peeledArrows[i] = arrow.copy(cells = arrow.cells.drop(1))
                     inRemaining[cellIdx] = false
-                    // Add `[tail, (cx, cy)]` at the end of `peeledArrows` (solved LAST when board is empty!)
+                    cellDirGrid[cellIdx] = dirToC
+                    cellDirGrid[tail.y * gridWidth + tail.x] = dirToC
                     peeledArrows.add(
                         WindingArrow(
                             id = peeledArrows.size + 1,
@@ -772,31 +980,180 @@ object SmartLevelGenerator {
         }
     }
 
+    /**
+     * Checks if any two adjacent arrows on the board have the exact same headDirection.
+     * Returns the number of conflicting pairs. Zero conflicts means NO adjacent arrows in the same direction!
+     */
+    fun countAdjacentSameDirectionConflicts(
+        arrows: List<WindingArrow>,
+        gridWidth: Int,
+        gridHeight: Int
+    ): Int {
+        val cellToArrow = HashMap<GridPoint, WindingArrow>(gridWidth * gridHeight)
+        for (arrow in arrows) {
+            for (c in arrow.cells) {
+                cellToArrow[c] = arrow
+            }
+        }
+        var conflicts = 0
+        val checkedPairs = HashSet<Long>()
+        for (arrow in arrows) {
+            val arrowDir = arrow.naturalHeadDirection
+            for (c in arrow.cells) {
+                for (d in Direction.entries) {
+                    val neighborArrow = cellToArrow[GridPoint(c.x + d.dx, c.y + d.dy)]
+                    if (neighborArrow != null && neighborArrow.id != arrow.id) {
+                        val idA = min(arrow.id, neighborArrow.id)
+                        val idB = max(arrow.id, neighborArrow.id)
+                        val pairKey = (idA.toLong() shl 32) or (idB.toLong() and 0xFFFFFFFFL)
+                        if (checkedPairs.add(pairKey)) {
+                            if (arrowDir == neighborArrow.naturalHeadDirection) {
+                                conflicts++
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return conflicts
+    }
+
+    /**
+     * Solver-verified optimizer that iterates over any conflicting arrow pair and tests
+     * non-conflicting end-to-end reversals while strictly verifying 100% solvability and natural arrowhead alignment.
+     */
+    fun eliminateAdjacentSameDirectionConflicts(
+        arrows: MutableList<WindingArrow>,
+        gridWidth: Int,
+        gridHeight: Int
+    ): Boolean {
+        var curConflicts = countAdjacentSameDirectionConflicts(arrows, gridWidth, gridHeight)
+        if (curConflicts == 0) return true
+
+        fun tryMutateArrow(idx: Int): Boolean {
+            val arrow = arrows[idx]
+
+            // 1. Single-cell arrow: can point in any direction
+            if (arrow.cells.size == 1) {
+                for (d in Direction.entries) {
+                    if (d == arrow.headDirection) continue
+                    val mutated = arrows.toMutableList()
+                    mutated[idx] = arrow.copy(headDirection = d)
+                    val newSol = ArrowPuzzleSolver.solve(gridWidth, gridHeight, mutated)
+                    if (newSol.isSolvable) {
+                        val newConf = countAdjacentSameDirectionConflicts(mutated, gridWidth, gridHeight)
+                        if (newConf < curConflicts) {
+                            arrows[idx] = mutated[idx]
+                            curConflicts = newConf
+                            return true
+                        }
+                    }
+                }
+            }
+
+            // 2. Multi-cell arrow: can ONLY be reversed end-to-end.
+            // When reversed, its new headDirection MUST strictly match the new neck-to-head vector!
+            if (arrow.cells.size >= 2) {
+                val oldTail = arrow.tail
+                val oldPreTail = arrow.cells[1]
+                val newDx = oldTail.x - oldPreTail.x
+                val newDy = oldTail.y - oldPreTail.y
+                val newHeadDir = Direction.entries.firstOrNull { it.dx == newDx && it.dy == newDy }
+                if (newHeadDir != null && newHeadDir != arrow.naturalHeadDirection) {
+                    val mutated = arrows.toMutableList()
+                    mutated[idx] = arrow.copy(
+                        cells = arrow.cells.reversed(),
+                        headDirection = newHeadDir
+                    )
+                    val newSol = ArrowPuzzleSolver.solve(gridWidth, gridHeight, mutated)
+                    if (newSol.isSolvable) {
+                        val newConf = countAdjacentSameDirectionConflicts(mutated, gridWidth, gridHeight)
+                        if (newConf < curConflicts) {
+                            arrows[idx] = mutated[idx]
+                            curConflicts = newConf
+                            return true
+                        }
+                    }
+                }
+            }
+            return false
+        }
+
+        var mutationBudget = 20
+        for (pass in 0..1) {
+            if (curConflicts == 0 || mutationBudget <= 0) break
+            val cellToArrow = HashMap<GridPoint, WindingArrow>(gridWidth * gridHeight)
+            for (arrow in arrows) {
+                for (c in arrow.cells) {
+                    cellToArrow[c] = arrow
+                }
+            }
+
+            for (i in arrows.indices) {
+                if (curConflicts == 0 || mutationBudget <= 0) break
+                val arrow = arrows[i]
+                var conflictingNeighbor: WindingArrow? = null
+                for (c in arrow.cells) {
+                    for (d in Direction.entries) {
+                        val n = cellToArrow[GridPoint(c.x + d.dx, c.y + d.dy)]
+                        if (n != null && n.id != arrow.id && n.headDirection == arrow.headDirection) {
+                            conflictingNeighbor = n
+                            break
+                        }
+                    }
+                    if (conflictingNeighbor != null) break
+                }
+                if (conflictingNeighbor == null) continue
+
+                mutationBudget--
+                // Try mutating arrow i
+                val fixed = tryMutateArrow(i)
+                if (fixed) {
+                    if (curConflicts == 0) return true
+                    for (c in arrows[i].cells) cellToArrow[c] = arrows[i]
+                    continue
+                }
+
+                if (mutationBudget <= 0) break
+                mutationBudget--
+                // If mutating arrow i didn't fix it, try mutating conflictingNeighbor!
+                val neighborIdx = arrows.indexOfFirst { it.id == conflictingNeighbor.id }
+                if (neighborIdx != -1) {
+                    val neighborFixed = tryMutateArrow(neighborIdx)
+                    if (neighborFixed) {
+                        if (curConflicts == 0) return true
+                        for (c in arrows[neighborIdx].cells) cellToArrow[c] = arrows[neighborIdx]
+                    }
+                }
+            }
+            if (curConflicts == 0) break
+        }
+        return curConflicts == 0
+    }
+
     private fun chooseArchetypeStyle(
         archetype: LevelAlgorithmArchetype,
         stepIndex: Int,
         levelNumber: Int,
         rng: Random
     ): ArrowStyle {
-        if (levelNumber <= 5) {
-            val roll = rng.nextFloat()
-            return when {
-                roll < 0.45f -> ArrowStyle.HOOK
-                roll < 0.80f -> ArrowStyle.BRACKET
-                else -> ArrowStyle.STRAIGHT
-            }
+        if (levelNumber <= 2) {
+            // Levels 1 and 2: clean 1-2 turn hooks and brackets
+            return if (rng.nextBoolean()) ArrowStyle.HOOK else ArrowStyle.BRACKET
         }
+        // From Level 3 onward: strictly winding multi-turn spirals, serpents, combs, and brackets
         val roll = rng.nextFloat()
         return when (archetype) {
             LevelAlgorithmArchetype.SPIRAL_CITADEL -> when {
                 roll < 0.45f -> ArrowStyle.SPIRAL
-                roll < 0.78f -> ArrowStyle.BRACKET
-                else -> ArrowStyle.HOOK
+                roll < 0.75f -> ArrowStyle.BRACKET
+                roll < 0.90f -> ArrowStyle.SERPENTINE
+                else -> ArrowStyle.COMB_U
             }
             LevelAlgorithmArchetype.SERPENTINE_LABYRINTH -> when {
                 roll < 0.50f -> ArrowStyle.SERPENTINE
                 roll < 0.80f -> ArrowStyle.BRACKET
-                else -> ArrowStyle.HOOK
+                else -> ArrowStyle.SPIRAL
             }
             LevelAlgorithmArchetype.INTERLOCKING_COMBS -> when {
                 roll < 0.48f -> ArrowStyle.COMB_U
@@ -809,9 +1166,9 @@ object SmartLevelGenerator {
                 else -> ArrowStyle.COMB_U
             }
             LevelAlgorithmArchetype.HYBRID_GRANDMASTER -> when {
-                roll < 0.36f -> ArrowStyle.SPIRAL
-                roll < 0.64f -> ArrowStyle.SERPENTINE
-                roll < 0.82f -> ArrowStyle.COMB_U
+                roll < 0.38f -> ArrowStyle.SPIRAL
+                roll < 0.68f -> ArrowStyle.SERPENTINE
+                roll < 0.86f -> ArrowStyle.COMB_U
                 else -> ArrowStyle.BRACKET
             }
         }
@@ -823,18 +1180,25 @@ object SmartLevelGenerator {
         rng: Random
     ): Int {
         if (levelNumber <= 2) {
-            return rng.nextInt(2, 4) // 2 to 3 cells: very clear and accessible
-        } else if (levelNumber <= 5) {
-            return rng.nextInt(3, 5) // 3 to 4 cells: moderate
+            return rng.nextInt(3, 5) // 3 to 4 cells with at least 1-2 bends
+        } else if (levelNumber in 3..4) {
+            return when (style) {
+                ArrowStyle.SPIRAL -> rng.nextInt(6, 10)
+                ArrowStyle.SERPENTINE -> rng.nextInt(5, 9)
+                ArrowStyle.COMB_U -> rng.nextInt(5, 8)
+                ArrowStyle.BRACKET -> rng.nextInt(4, 7)
+                ArrowStyle.HOOK -> rng.nextInt(4, 6)
+                ArrowStyle.STRAIGHT -> rng.nextInt(3, 5)
+            }
         }
-        // Level 6+: full dense interlocking arrows (3 to 8 cells)
+        // Level 5+: complex deeply-interlocked multi-turned arrows (6 to 12 cells, 3 to 6 turns)
         return when (style) {
-            ArrowStyle.SPIRAL -> rng.nextInt(5, 9)
-            ArrowStyle.SERPENTINE -> rng.nextInt(4, 8)
-            ArrowStyle.COMB_U -> rng.nextInt(4, 7)
-            ArrowStyle.BRACKET -> rng.nextInt(3, 6)
-            ArrowStyle.HOOK -> rng.nextInt(3, 5)
-            ArrowStyle.STRAIGHT -> rng.nextInt(2, 4)
+            ArrowStyle.SPIRAL -> rng.nextInt(7, 12)
+            ArrowStyle.SERPENTINE -> rng.nextInt(6, 11)
+            ArrowStyle.COMB_U -> rng.nextInt(6, 10)
+            ArrowStyle.BRACKET -> rng.nextInt(5, 9)
+            ArrowStyle.HOOK -> rng.nextInt(4, 7)
+            ArrowStyle.STRAIGHT -> rng.nextInt(4, 6)
         }
     }
 

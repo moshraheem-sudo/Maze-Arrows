@@ -165,7 +165,9 @@ fun AmazeArrowsApp(
                             MainMenuScreen(
                                 profile = profile,
                                 themePalette = themePalette,
+                                isGeneratingLevel = uiState.isGeneratingLevel,
                                 onContinueLevel = { lvl -> viewModel.startCampaignLevel(lvl) },
+                                onStartReverseShape = { shape -> viewModel.startReverseShapeGame(shape) },
                                 onOpenLevelSelect = { viewModel.navigateTo(AppScreen.LEVEL_SELECT) },
                                 onOpenCustomGenerator = { viewModel.navigateTo(AppScreen.CUSTOM_GENERATOR) },
                                 onOpenShop = { viewModel.setShowShopModal(true) },
@@ -205,6 +207,7 @@ fun AmazeArrowsApp(
                                 uiState = uiState,
                                 profile = profile,
                                 themePalette = themePalette,
+                                restartCost = viewModel.getInLevelRestartCost(),
                                 onArrowTapped = { arrowId -> viewModel.onArrowTapped(arrowId) },
                                 onPreviousLevelClick = { viewModel.goToPreviousLevel() },
                                 onNextUnlockedLevelClick = { viewModel.goToNextUnlockedLevel() },
@@ -214,10 +217,12 @@ fun AmazeArrowsApp(
                                 onAutoSolveToggle = { viewModel.toggleSolverStepOrAutoSolve(continuous = true) },
                                 onResetZoomClick = { viewModel.resetBoardZoom() },
                                 onRestartLevel = { viewModel.restartCurrentLevel() },
+                                onRestartWithPointsClick = { viewModel.restartCurrentLevelWithPoints() },
                                 onNextLevel = { viewModel.proceedToNextLevel() },
                                 onRefillLives = { viewModel.refillLivesAndContinue() },
                                 onBuyAttemptsAndContinue = { viewModel.purchaseAttemptsAndContinue() },
                                 onBuyStayInSameLevel = { viewModel.purchaseStayInSameLevelWithoutEscalation() },
+                                onFreeRetrySameMode = { viewModel.freeRetrySameModeLevel() },
                                 onOpenShop = { viewModel.setShowShopModal(true) },
                                 onOpenSettings = { viewModel.setShowSettingsModal(true) },
                                 onOpenThemes = { viewModel.setShowThemeModal(true) },
@@ -250,7 +255,8 @@ fun AmazeArrowsApp(
                         screenPrivacyProtection = uiState.screenPrivacyProtectionEnabled,
                         onToggleScreenPrivacyProtection = { viewModel.toggleScreenPrivacyProtection(it) },
                         onOpenSecurityShieldDialog = { viewModel.setShowSecurityShieldModal(true) },
-                        onRestartLevel = { viewModel.restartCurrentLevel() }
+                        onRestartLevel = { viewModel.restartCurrentLevel() },
+                        onExitToMenu = { viewModel.navigateTo(AppScreen.MAIN_MENU) }
                     )
                 }
 

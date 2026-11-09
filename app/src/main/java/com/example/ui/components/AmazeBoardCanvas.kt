@@ -73,6 +73,8 @@ import kotlin.math.min
 import androidx.compose.foundation.gestures.calculateCentroid
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.cos
+import kotlin.math.PI
 
 @Composable
 fun AmazeBoardCanvas(
@@ -425,7 +427,7 @@ fun AmazeBoardCanvas(
                                 val points = arrow.getInterpolatedPolyline(bounceSteps)
                                 drawWindingArrowPolyline(
                                     gridPoints = points,
-                                    headDirection = arrow.headDirection,
+                                    headDirection = arrow.naturalHeadDirection,
                                     originX = originX,
                                     originY = originY,
                                     cellStep = cellStep,
@@ -461,7 +463,7 @@ fun AmazeBoardCanvas(
                             if (previewArrow != null) {
                                 val headX = originX + previewArrow.head.x * cellStep
                                 val headY = originY + previewArrow.head.y * cellStep
-                                val dir = previewArrow.headDirection
+                                val dir = previewArrow.naturalHeadDirection
 
                                 // Laser penetrates the entire grid from arrow head all the way past outer board edge
                                 val fullLaserEndX = when (dir) {
@@ -605,11 +607,12 @@ fun AmazeBoardCanvas(
                                 extraExitSteps = (escaping.totalStepsToClear.toInt() + 6)
                             )
 
+                            val escDir = escaping.arrow.naturalHeadDirection
                             if (poly.isNotEmpty()) {
                                 val tailPt = poly.first()
                                 for (k in 1..3) {
-                                    val trailX = originX + (tailPt.first - escaping.arrow.headDirection.dx * k * 0.45f) * cellStep
-                                    val trailY = originY + (tailPt.second - escaping.arrow.headDirection.dy * k * 0.45f) * cellStep
+                                    val trailX = originX + (tailPt.first - escDir.dx * k * 0.45f) * cellStep
+                                    val trailY = originY + (tailPt.second - escDir.dy * k * 0.45f) * cellStep
                                     drawCircle(
                                         color = trailParticleColor.copy(alpha = (1f - rawProgress) * (0.55f / k)),
                                         radius = dotRadius * 1.2f,
@@ -620,7 +623,7 @@ fun AmazeBoardCanvas(
 
                             drawWindingArrowPolyline(
                                 gridPoints = poly,
-                                headDirection = escaping.arrow.headDirection,
+                                headDirection = escDir,
                                 originX = originX,
                                 originY = originY,
                                 cellStep = cellStep,
@@ -677,7 +680,7 @@ private fun DrawScope.drawStaticWindingArrow(
         headPath = headPath,
         headX = headX,
         headY = headY,
-        headDirection = arrow.headDirection,
+        headDirection = arrow.naturalHeadDirection,
         cellStep = cellStep,
         strokeWidth = strokeWidth,
         color = color,
@@ -721,12 +724,28 @@ private fun DrawScope.drawWindingArrowPolyline(
     val headX = originX + headGrid.first * cellStep
     val headY = originY + headGrid.second * cellStep
 
+    val effectiveHeadDirection = if (gridPoints.size >= 2) {
+        val pHead = gridPoints.last()
+        val pNeck = gridPoints[gridPoints.size - 2]
+        val diffX = pHead.first - pNeck.first
+        val diffY = pHead.second - pNeck.second
+        if (kotlin.math.abs(diffX) > kotlin.math.abs(diffY)) {
+            if (diffX > 0f) Direction.RIGHT else Direction.LEFT
+        } else if (kotlin.math.abs(diffY) > kotlin.math.abs(diffX)) {
+            if (diffY > 0f) Direction.DOWN else Direction.UP
+        } else {
+            headDirection
+        }
+    } else {
+        headDirection
+    }
+
     finishDrawingArrowPaths(
         strokePath = strokePath,
         headPath = headPath,
         headX = headX,
         headY = headY,
-        headDirection = headDirection,
+        headDirection = effectiveHeadDirection,
         cellStep = cellStep,
         strokeWidth = strokeWidth,
         color = color,

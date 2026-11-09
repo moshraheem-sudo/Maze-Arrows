@@ -106,8 +106,12 @@ data class GameplayUiState(
     val screenPrivacyProtectionEnabled: Boolean = false,
     val shopFeedbackMessage: String? = null,
     val updateCheckState: GitHubUpdateCheckState = GitHubUpdateCheckState(),
+    val inLevelRestartCount: Int = 0,
     val zoomResetTrigger: Int = 0
-)
+) {
+    val freeRestartsRemaining: Int
+        get() = (5 - inLevelRestartCount).coerceAtLeast(0)
+}
 
 class AmazeGameViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -324,13 +328,19 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _uiState.update { it.copy(isGeneratingLevel = true, retryEscalationCount = 0) }
             val dnaSeed = playerProfile.value.playerDnaSeed
-            // Levels 1 to 5 always start strictly in EASY mode without being hijacked by old locks!
-            val lockedTier = if (levelNumber <= 5) null else resolveLockedDifficultyTier()
+            // Levels 1 and 2 always start strictly in EASY mode without being hijacked by old locks!
+            val lockedTier = if (levelNumber <= 2) null else resolveLockedDifficultyTier()
             val bonusBankSeconds = withContext(Dispatchers.IO) {
                 repository.consumeBonusTimeBank()
             }
             val savedProgress = withContext(Dispatchers.IO) {
-                repository.getLevelProgress(levelNumber)
+                val old = repository.getLevelProgress(levelNumber)
+                if (levelNumber <= 2 && old != null && old.savedRemainingArrowIdsCsv.length > 50) {
+                    repository.clearActiveLevelProgress(levelNumber)
+                    null
+                } else {
+                    old
+                }
             }
             val generated = withContext(Dispatchers.Default) {
                 SmartLevelGenerator.generateCampaignLevel(
@@ -460,6 +470,42 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         launchLevelIntoGameplay(preview, escalationCount = 0)
     }
 
+    /**
+     * Directly launches a dedicated ultra-hard tactical reverse movement puzzle for the selected shape!
+     * Integrates citadel (القلعة), labyrinth (المتاهة), hourglass (الساعة الرملية), twin pillars (الأعمدة), and tower (البرج).
+     */
+    fun startReverseShapeGame(shape: BoardShapeMask) {
+        if (_uiState.value.isGeneratingLevel) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isGeneratingLevel = true) }
+            val dnaSeed = playerProfile.value.playerDnaSeed
+            val tier = DifficultyTier.HARD
+            val archetype = when (shape) {
+                BoardShapeMask.STEPPED_CITADEL -> LevelAlgorithmArchetype.SPIRAL_CITADEL
+                BoardShapeMask.LABYRINTH_CORE -> LevelAlgorithmArchetype.SERPENTINE_LABYRINTH
+                BoardShapeMask.HOURGLASS -> LevelAlgorithmArchetype.VORTEX_CONVERGENCE
+                BoardShapeMask.TWIN_PILLARS -> LevelAlgorithmArchetype.INTERLOCKING_COMBS
+                BoardShapeMask.CLASSIC_TOWER -> LevelAlgorithmArchetype.HYBRID_GRANDMASTER
+                BoardShapeMask.FULL_MATRIX -> LevelAlgorithmArchetype.HYBRID_GRANDMASTER
+            }
+            val generated = withContext(Dispatchers.Default) {
+                SmartLevelGenerator.generateCustomLevel(
+                    difficulty = tier,
+                    shapeMask = shape,
+                    archetype = archetype,
+                    playerDnaSeed = dnaSeed,
+                    seed = System.currentTimeMillis() xor (shape.ordinal * 7919L)
+                )
+            }
+            val banner = "نمط ${shape.arabicName} التكتيكي ${shape.iconEmoji}"
+            launchLevelIntoGameplay(
+                level = generated,
+                escalationCount = 0,
+                customBannerMessage = banner
+            )
+        }
+    }
+
     private fun launchLevelIntoGameplay(
         level: PuzzleLevel,
         escalationCount: Int = _uiState.value.retryEscalationCount,
@@ -518,6 +564,7 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 showThemeModal = false,
                 showShopModal = false,
                 showEyeCareReminder = false,
+                inLevelRestartCount = 0,
                 zoomResetTrigger = it.zoomResetTrigger + 1
             )
         }
@@ -525,6 +572,97 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
         startTimer()
         if (playerProfile.value.musicEnabled) {
             soundManager.startAmbientMusicIfNeeded()
+        }
+    }
+
+    /**
+     * Escalating restart cost: 1st restart in level costs 20 points, 2nd costs 45, etc.
+     * For early levels (<= 6), restarting is completely FREE to help players learn and collect points.
+     */
+    fun getInLevelRestartCost(): Int {
+        val count = _uiState.value.inLevelRestartCount
+        return if (count < 5) {
+            0 // Free for the first 5 restarts!
+        } else {
+            15 + (count - 5) * 10 // After 5 free restarts, costs points
+        }
+    }
+
+    /**
+     * Free retry in the exact same mode and level without difficulty escalation.
+     * Guaranteed second chance when time runs out or for early levels (<= 6) so players never get stuck.
+     */
+    fun freeRetrySameModeLevel() {
+        val state = _uiState.value
+        val curLevel = state.activeLevel ?: return
+        stopAutoSolve()
+        stopTimer()
+        soundManager.playGameStart()
+        launchLevelIntoGameplay(
+            level = curLevel,
+            escalationCount = state.retryEscalationCount,
+            customBannerMessage = "⏱️ محاولة مجانية • نفس الوضع (${curLevel.difficulty.arabicLabel})"
+        )
+    }
+
+    /**
+     * Restarts the current level in-place: free for the first 5 attempts, then costs points.
+     */
+    fun restartCurrentLevelWithPoints() {
+        val state = _uiState.value
+        val level = state.activeLevel ?: return
+        val cost = getInLevelRestartCost()
+        val profile = playerProfile.value
+
+        if (cost > 0 && profile.totalScore < cost) {
+            _uiState.update {
+                it.copy(
+                    showShopModal = true,
+                    shopFeedbackMessage = "تحتاج إلى $cost نقطة لإعادة المستوى • رصيدك الحالي: ${profile.totalScore} 🪙"
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            val success = if (cost > 0) {
+                withContext(Dispatchers.IO) {
+                    repository.purchaseInLevelTool(cost)
+                }
+            } else {
+                true
+            }
+            if (success) {
+                val nextCount = state.inLevelRestartCount + 1
+                val freeLeft = (5 - nextCount).coerceAtLeast(0)
+                soundManager.playGameStart()
+                _uiState.update { current ->
+                    current.copy(
+                        inLevelRestartCount = nextCount,
+                        remainingArrows = level.arrows,
+                        undoStack = emptyList(),
+                        escapingArrows = emptyList(),
+                        blockedFeedback = null,
+                        selectedPreviewArrowId = null,
+                        hintedArrowId = null,
+                        livesRemaining = 5,
+                        comboCount = 0,
+                        remainingSeconds = current.levelTimeLimitSeconds,
+                        isTimeOutGameOver = false,
+                        isVictory = false,
+                        isGameOver = false,
+                        isAutoSolving = false,
+                        topToastBanner = if (cost > 0) {
+                            "🔄 تمت إعادة المستوى بنجاح (-$cost نقطة)"
+                        } else if (freeLeft > 0) {
+                            "🔄 إعادة مجانية (متبقي $freeLeft محاولات مجانية)"
+                        } else {
+                            "🔄 استهلكت آخر محاولة مجانية! الإعادة القادمة بنقاط"
+                        }
+                    )
+                }
+                scheduleToastDismiss(2500L)
+            }
         }
     }
 
@@ -595,8 +733,14 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 repository.clearActiveLevelProgress(level.levelNumber)
             }
         }
-        // If the player lost at least one attempt (or ran out of attempts/time), starting anew switches to a harder mode (unless mode-lock was purchased)!
-        if (state.livesRemaining < state.maxLives || state.isGameOver) {
+        val isEarlyLevel = !level.isCustomGenerated && level.levelNumber <= 6
+        if (isEarlyLevel) {
+            launchLevelIntoGameplay(
+                level = level,
+                escalationCount = 0,
+                customBannerMessage = "المستوى ${level.levelNumber}"
+            )
+        } else if (state.livesRemaining < state.maxLives || state.isGameOver) {
             escalateAndReopenSameLevel("🔥 إعادة")
         } else {
             launchLevelIntoGameplay(level, escalationCount = state.retryEscalationCount)
@@ -674,8 +818,10 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 val newCombo = state.comboCount + 1
                 val comboBonus = if (newCombo >= 4) 1 else 0
                 val isGoldenArrow = tappedArrow.colorAccentIndex == 1
+                val isStarArrow = tappedArrow.hasSparkleBadge
                 val goldenBonus = if (isGoldenArrow) 1 else 0
-                val totalPointsEarned = 1 + comboBonus + goldenBonus
+                val starBonusPoints = if (isStarArrow) 50 else 0
+                val totalPointsEarned = 1 + comboBonus + goldenBonus + starBonusPoints
                 val updatedRemaining = state.remainingArrows.filterNot { it.id == arrowId }
                 val escapingItem = EscapingArrowState(
                     arrow = tappedArrow,
@@ -689,10 +835,18 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
                 if (!state.usedAutoSolveInCurrentLevel) {
                     viewModelScope.launch(Dispatchers.IO) {
                         repository.addScorePoints(totalPointsEarned)
+                        if (isStarArrow) {
+                            repository.addStars(1)
+                        }
                     }
                 }
 
+                if (isStarArrow) {
+                    soundManager.playStarCollectedSound()
+                }
+
                 val encouragement = when {
+                    isStarArrow -> "⭐ سهم النجوم الذهبية! (+1 نجمة و +50 نقطة!)"
                     isGoldenArrow -> "⭐ أحسنت! سهم مميز (+نقطة إضافية)"
                     newCombo == 3 -> "أبدعت! سلسلة متتالية 🔥"
                     newCombo == 5 -> "نصر مذهل! حركة عبقرية ⚡"
@@ -1378,10 +1532,38 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
     /**
      * Purchases +5 attempts using points so the player can continue solving the exact same board
      * without losing progress or escalating difficulty.
+     * For early levels (<= 6), continuing is completely FREE to help the player earn points.
      */
     fun purchaseAttemptsAndContinue() {
         viewModelScope.launch {
+            val state = _uiState.value
+            val curLevel = state.activeLevel ?: return@launch
             val profile = playerProfile.value
+            val isEarlyLevel = !curLevel.isCustomGenerated && curLevel.levelNumber <= 6
+
+            if (isEarlyLevel) {
+                soundManager.playHintChime()
+                _uiState.update {
+                    val addedTime = if (it.remainingSeconds < 45) 90 else 45
+                    it.copy(
+                        livesRemaining = 5,
+                        maxLives = 5,
+                        remainingSeconds = it.remainingSeconds + addedTime,
+                        levelTimeLimitSeconds = it.levelTimeLimitSeconds + addedTime,
+                        isGameOver = false,
+                        isTimeOutGameOver = false,
+                        blockedFeedback = null,
+                        shopFeedbackMessage = "🎁 محاولة مجانية للمستوى ${curLevel.levelNumber}!",
+                        topToastBanner = "💧 +5 محاولات مجانية • تابع اللعب!"
+                    )
+                }
+                scheduleToastDismiss(2200L)
+                if (_uiState.value.currentScreen == AppScreen.GAMEPLAY && !_uiState.value.isVictory) {
+                    startTimer()
+                }
+                return@launch
+            }
+
             val cost = GameRepository.computeExtraAttemptsCost(profile.totalPurchasesCount)
 
             val outcome = withContext(Dispatchers.IO) {
@@ -1434,12 +1616,25 @@ class AmazeGameViewModel(application: Application) : AndroidViewModel(applicatio
     /**
      * Purchases "Stay in the Same Level & Mode Without Changing" (`شراء البقاء في المستوى نفسه دون تغيير`)
      * when attempts run out, restarting the current level with 5 attempts in its current mode without escalating.
+     * Free for levels <= 6!
      */
     fun purchaseStayInSameLevelWithoutEscalation() {
         viewModelScope.launch {
             val state = _uiState.value
             val curLevel = state.activeLevel ?: return@launch
             val profile = playerProfile.value
+            val isEarlyLevel = !curLevel.isCustomGenerated && curLevel.levelNumber <= 6
+
+            if (isEarlyLevel) {
+                soundManager.playHintChime()
+                launchLevelIntoGameplay(
+                    level = curLevel,
+                    escalationCount = 0,
+                    customBannerMessage = "🎁 المستوى ${curLevel.levelNumber} مجاني بالكامل"
+                )
+                return@launch
+            }
+
             val cost = GameRepository.computeStayInModeCost(profile.totalPurchasesCount)
 
             val outcome = withContext(Dispatchers.IO) {

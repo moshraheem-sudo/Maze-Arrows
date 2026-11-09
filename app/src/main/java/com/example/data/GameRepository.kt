@@ -68,6 +68,14 @@ class GameRepository(private val dao: GameProgressDao) {
         )
     }
 
+    suspend fun addStars(stars: Int) {
+        if (stars <= 0) return
+        val profile = dao.getPlayerProfileOnce() ?: PlayerProfileEntity()
+        dao.upsertPlayerProfile(
+            profile.copy(totalStars = profile.totalStars + stars)
+        )
+    }
+
     suspend fun consumeBonusTimeBank(): Int {
         val profile = dao.getPlayerProfileOnce() ?: return 0
         val bonus = profile.bonusTimeSecondsBank

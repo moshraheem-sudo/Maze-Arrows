@@ -78,6 +78,20 @@ data class WindingArrow(
     val colorAccentIndex: Int = 0,
     val hasSparkleBadge: Boolean = false
 ) {
+    val naturalHeadDirection: Direction
+        get() {
+            if (cells.size >= 2) {
+                val headCell = cells.last()
+                val neckCell = cells[cells.size - 2]
+                val dx = (headCell.x - neckCell.x).coerceIn(-1, 1)
+                val dy = (headCell.y - neckCell.y).coerceIn(-1, 1)
+                for (d in Direction.entries) {
+                    if (d.dx == dx && d.dy == dy) return d
+                }
+            }
+            return headDirection
+        }
+
     val head: GridPoint
         get() = cells.last()
 
@@ -93,12 +107,13 @@ data class WindingArrow(
     ): List<Pair<Float, Float>> {
         if (cells.isEmpty()) return emptyList()
         val s = slideSteps.coerceAtLeast(0f)
+        val exitDir = naturalHeadDirection
         if (cells.size == 1) {
             val c = cells[0]
-            val hx = c.x + headDirection.dx * s
-            val hy = c.y + headDirection.dy * s
-            val tx = hx - headDirection.dx * 0.55f
-            val ty = hy - headDirection.dy * 0.55f
+            val hx = c.x + exitDir.dx * s
+            val hy = c.y + exitDir.dy * s
+            val tx = hx - exitDir.dx * 0.55f
+            val ty = hy - exitDir.dy * 0.55f
             return listOf(tx to ty, hx to hy)
         }
 
@@ -110,7 +125,7 @@ data class WindingArrow(
             } else {
                 val extra = idx - (cells.size - 1)
                 val h = cells.last()
-                (h.x + headDirection.dx * extra).toFloat() to (h.y + headDirection.dy * extra).toFloat()
+                (h.x + exitDir.dx * extra).toFloat() to (h.y + exitDir.dy * extra).toFloat()
             }
         }
 
@@ -163,40 +178,40 @@ enum class DifficultyTier(
         tierIndex = 0,
         arabicLabel = "سهل",
         englishLabel = "Easy",
-        descriptionAr = "المراحل 1–10: لوحات متقاربة بدون فراغات لبداية متدرجة",
-        levelRange = 1..10,
+        descriptionAr = "المستويان 1–2: بداية سهلة ومباشرة لتعلم قواعد خروج الأسهم والتحكم",
+        levelRange = 1..2,
         badgeColorHex = 0xFF2E7D32
     ),
     MEDIUM(
         tierIndex = 1,
         arabicLabel = "متوسط",
         englishLabel = "Medium",
-        descriptionAr = "المراحل 11–30: زيادة تلقائية في عدد الأسهم وتشابك المسارات",
-        levelRange = 11..30,
+        descriptionAr = "المستويات 3–6: صعوبة متصاعدة مع مسارات متعرجة والتفافات متداخلة",
+        levelRange = 3..6,
         badgeColorHex = 0xFF1565C0
     ),
     HARD(
         tierIndex = 2,
         arabicLabel = "صعب",
         englishLabel = "Hard",
-        descriptionAr = "المراحل 31–80: كثافة عالية جداً مع قلاع حلزونية وأمشاط متداخلة",
-        levelRange = 31..80,
+        descriptionAr = "المستويات 7–20: كثافة عالية وأمشاط حلزونية معقدة بدون مسارات سهلة",
+        levelRange = 7..20,
         badgeColorHex = 0xFF7B1FA2
     ),
     EXPERT(
         tierIndex = 3,
         arabicLabel = "خبير",
         englishLabel = "Expert",
-        descriptionAr = "المراحل 81–200: متاهات واسعة ممتلئة بالكامل تتطلب تخطيطاً عميقاً",
-        levelRange = 81..200,
+        descriptionAr = "المراحل 21–60: متاهات واسعة ومترابطة تتطلب تخطيطاً عميقاً وتركيزاً",
+        levelRange = 21..60,
         badgeColorHex = 0xFFE65100
     ),
     PRO(
         tierIndex = 4,
         arabicLabel = "محترف",
         englishLabel = "Pro Master",
-        descriptionAr = "المراحل 201–500: أقصى درجات الامتلاء والتعقيد الملحمي للمحترفين",
-        levelRange = 201..500,
+        descriptionAr = "المراحل 61–500: أقصى درجات الامتلاء والتداخل الملحمي للمحترفين",
+        levelRange = 61..500,
         badgeColorHex = 0xFFC62828
     );
 
@@ -207,19 +222,18 @@ enum class DifficultyTier(
 
         /**
          * Rebalanced difficulty progression:
-         * - Levels 1 to 5: ALWAYS strictly EASY (سهل) as baseline, with compact, accessible layouts!
-         *   On timeout/failure escalation (escalationSteps > 0), they step up smoothly (Easy -> Medium -> Hard).
-         * - Levels 6 to 10: MEDIUM (متوسط)
-         * - Levels 11 to 25: HARD (صعب)
-         * - Levels 26 to 60: EXPERT (خبير)
-         * - Levels 61+: PRO (محترف) with dense, deeply winding labyrinths.
+         * - Levels 1 and 2: ALWAYS strictly EASY (سهل) as baseline introduction.
+         * - Levels 3 to 6: MEDIUM (متوسط) with winding curves and increased complexity.
+         * - Levels 7 to 20: HARD (صعب) with tight interlocking obstacles.
+         * - Levels 21 to 60: EXPERT (خبير) with intricate multi-turn labyrinths.
+         * - Levels 61+: PRO (محترف) with deep master-level puzzle matrices.
          */
         fun dynamicForLevel(levelNumber: Int, escalationSteps: Int = 0): DifficultyTier {
             val baseTierIndex = when {
-                levelNumber in 1..5 -> 0 // Strictly EASY as baseline for first 5 levels!
-                levelNumber in 6..10 -> 1 // MEDIUM
-                levelNumber in 11..25 -> 2 // HARD
-                levelNumber in 26..60 -> 3 // EXPERT
+                levelNumber in 1..2 -> 0 // Strictly EASY ONLY for the first two levels!
+                levelNumber in 3..6 -> 1 // MEDIUM
+                levelNumber in 7..20 -> 2 // HARD
+                levelNumber in 21..60 -> 3 // EXPERT
                 else -> 4 // PRO master for 61+
             }
             val escalatedIndex = (baseTierIndex + escalationSteps).coerceIn(0, entries.lastIndex)
@@ -237,13 +251,17 @@ enum class DifficultyTier(
     }
 }
 
-enum class BoardShapeMask(val arabicName: String) {
-    FULL_MATRIX("شبكة كاملة"),
-    CLASSIC_TOWER("البرج"),
-    TWIN_PILLARS("الأعمدة"),
-    STEPPED_CITADEL("القلعة"),
-    LABYRINTH_CORE("المتاهة"),
-    HOURGLASS("الساعة الرملية")
+enum class BoardShapeMask(
+    val arabicName: String,
+    val iconEmoji: String,
+    val tacticalSubtitle: String
+) {
+    FULL_MATRIX("الشبكة الكاملة", "⬛", "المصفوفة الكلاسيكية الموسعة"),
+    STEPPED_CITADEL("القلعة الحصينة", "🏰", "أسوار متدرجة وحصون حلزونية"),
+    LABYRINTH_CORE("قلب المتاهة", "🌀", "متاهة عميقة تلتف حول المركز"),
+    HOURGLASS("الساعة الرملية", "⏳", "عنق زجاجي ضيق ومسارات تدفق دقيقة"),
+    TWIN_PILLARS("الأعمدة المزدوجة", "🏛️", "برجان متوازيان وجسور تقاطع حاسمة"),
+    CLASSIC_TOWER("البرج الشاهق", "🗼", "أجنحة مرتفعة ومسارات رأسية وأفقية حادة")
 }
 
 enum class ArrowTipStyle(

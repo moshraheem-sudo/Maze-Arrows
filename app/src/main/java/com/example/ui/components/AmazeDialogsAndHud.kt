@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Visibility
 import com.example.engine.ArrowTipStyle
+import com.example.engine.BoardShapeMask
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -139,9 +140,13 @@ fun AmazeGameplayTopBar(
     isCustomLevel: Boolean,
     difficulty: DifficultyTier,
     themePalette: BoardThemePalette,
+    shapeMask: BoardShapeMask? = null,
     totalScore: Int = 0,
+    totalStars: Int = 0,
+    restartCost: Int = 20,
     isModeLocked: Boolean = false,
-    onBackClick: () -> Unit,
+    onRestartWithPointsClick: () -> Unit = {},
+    onBackClick: () -> Unit = {},
     onPreviousLevelClick: () -> Unit = {},
     onNextUnlockedLevelClick: () -> Unit = {},
     onShopClick: () -> Unit = {},
@@ -165,166 +170,44 @@ fun AmazeGameplayTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Pinned App Title
-            Text(
-                text = "Maze Arrows",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 18.sp,
-                    letterSpacing = 0.5.sp
-                ),
-                maxLines = 1,
-                color = titleColor,
-                textAlign = TextAlign.Center,
+            // Balanced Top Toolbar Row: Actions (Start) + Centered Level Title (Center) + Unified Stars & Points (End)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 6.dp)
-            )
-
-            // 2. Toolbar Row: Back button (Start) + Level Capsule (Center) + Action Group (End)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
+                    .padding(horizontal = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Back Button (Start)
-                Surface(
-                    onClick = onBackClick,
-                    shape = CircleShape,
-                    color = iconSurfaceColor,
-                    border = BorderStroke(1.dp, buttonBorderColor),
-                    shadowElevation = 1.dp,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .testTag("back_to_menu_button")
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "رجوع",
-                            tint = textColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                // Center: Level & Difficulty Mode Unified Capsule
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = iconSurfaceColor,
-                    border = BorderStroke(1.dp, buttonBorderColor),
-                    shadowElevation = 1.dp,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = if (isCustomLevel) "مخصص" else "المستوى $levelNumber",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 14.sp
-                            ),
-                            maxLines = 1,
-                            softWrap = false,
-                            color = textColor
-                        )
-
-                        Spacer(modifier = Modifier.width(6.dp))
-
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = diffBadgeColor.copy(alpha = if (themePalette.isDark) 0.35f else 0.18f),
-                            border = BorderStroke(
-                                1.dp,
-                                if (themePalette.isDark) Color(0xFFFFCC80).copy(alpha = 0.65f) else diffBadgeColor.copy(alpha = 0.55f)
-                            )
-                        ) {
-                            Text(
-                                text = if (isModeLocked) "🔒 ${difficulty.arabicLabel}" else difficulty.arabicLabel,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 11.sp
-                                ),
-                                maxLines = 1,
-                                softWrap = false,
-                                color = if (themePalette.isDark) Color(0xFFFFE082) else diffBadgeColor,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
-                            )
-                        }
-                    }
-                }
-
-                // End Group: Points Shop + Palette + Settings with matched 38dp height and unified aesthetic
+                // Start Group: Back Button (BEFORE Settings) + Settings Button + Themes Button
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Points Shop Button
+                    // 1. Back button to return to main menu (زر رجوع للخلف للشاشة الرئيسية)
                     Surface(
-                        onClick = onShopClick,
-                        shape = RoundedCornerShape(19.dp),
-                        color = iconSurfaceColor,
-                        border = BorderStroke(
-                            1.dp,
-                            if (themePalette.isDark) Color(0xFFD9A74A).copy(alpha = 0.55f) else Color(0xFFD9822B).copy(alpha = 0.45f)
-                        ),
-                        shadowElevation = 1.dp,
-                        modifier = Modifier
-                            .height(38.dp)
-                            .testTag("gameplay_shop_button")
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(horizontal = 9.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ShoppingCart,
-                                contentDescription = "متجر النقاط",
-                                tint = if (themePalette.isDark) Color(0xFFFFCA28) else Color(0xFFD9822B),
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = "$totalScore",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 11.5.sp
-                                ),
-                                maxLines = 1,
-                                softWrap = false,
-                                color = textColor
-                            )
-                        }
-                    }
-
-                    // Theme Palette Button
-                    Surface(
-                        onClick = onThemeClick,
+                        onClick = onBackClick,
                         shape = CircleShape,
                         color = iconSurfaceColor,
                         border = BorderStroke(1.dp, buttonBorderColor),
                         shadowElevation = 1.dp,
                         modifier = Modifier
                             .size(38.dp)
-                            .testTag("theme_button")
+                            .testTag("gameplay_back_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.Palette,
-                                contentDescription = "تغيير المظهر",
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "الرجوع للشاشة الرئيسية",
                                 tint = textColor,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    // Settings Button
+                    // 2. Settings Button
                     Surface(
                         onClick = onSettingsClick,
                         shape = CircleShape,
@@ -340,7 +223,133 @@ fun AmazeGameplayTopBar(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "الإعدادات",
                                 tint = textColor,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // 3. Theme Palette Button
+                    Surface(
+                        onClick = onThemeClick,
+                        shape = CircleShape,
+                        color = iconSurfaceColor,
+                        border = BorderStroke(1.dp, buttonBorderColor),
+                        shadowElevation = 1.dp,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("theme_button")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = "تغيير المظهر",
+                                tint = textColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Center: Level Title and Number cleanly centered (no 'سهل' or difficulty word)
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = iconSurfaceColor,
+                    border = BorderStroke(1.dp, buttonBorderColor),
+                    shadowElevation = 1.dp,
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .testTag("gameplay_level_badge")
+                ) {
+                    val levelTitle = if (isCustomLevel) {
+                        shapeMask?.arabicName ?: "مخصص"
+                    } else {
+                        "المستوى $levelNumber"
+                    }
+                    Text(
+                        text = levelTitle,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            letterSpacing = 0.3.sp
+                        ),
+                        maxLines = 1,
+                        softWrap = false,
+                        color = titleColor,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                    )
+                }
+
+                // End Group: SINGLE unified button for Stars & Points (أموال ونقاط اللاعب في زر واحد بدون التفاف)
+                Surface(
+                    onClick = onShopClick,
+                    shape = RoundedCornerShape(16.dp),
+                    color = iconSurfaceColor,
+                    border = BorderStroke(
+                        1.dp,
+                        if (themePalette.isDark) Color(0xFFFFD54F).copy(alpha = 0.55f) else Color(0xFFD9822B).copy(alpha = 0.45f)
+                    ),
+                    shadowElevation = 1.dp,
+                    modifier = Modifier
+                        .height(36.dp)
+                        .testTag("unified_points_stars_button")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        // Stars (النجوم)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "النجوم",
+                                tint = Color(0xFFFFB300),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "$totalStars",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 11.5.sp
+                                ),
+                                maxLines = 1,
+                                softWrap = false,
+                                color = textColor
+                            )
+                        }
+
+                        // Divider
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(12.dp)
+                                .background(buttonBorderColor)
+                        )
+
+                        // Points / Coins (النقاط)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ShoppingCart,
+                                contentDescription = "النقاط",
+                                tint = if (themePalette.isDark) Color(0xFFFFCA28) else Color(0xFFD9822B),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "$totalScore",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 11.5.sp
+                                ),
+                                maxLines = 1,
+                                softWrap = false,
+                                color = textColor
                             )
                         }
                     }
@@ -588,11 +597,12 @@ fun AmazeFloatingToastBanner(
 
 @Composable
 fun AmazeGameplayBottomBar(
-    canUndo: Boolean,
+    restartCost: Int = 20,
+    freeRestartsRemaining: Int = 5,
     zoomScale: Float = 1f,
     isAutoSolving: Boolean,
     themePalette: BoardThemePalette,
-    onUndoClick: () -> Unit,
+    onRestartWithPointsClick: () -> Unit,
     onHintClick: () -> Unit,
     onZoomInClick: () -> Unit = {},
     onZoomOutClick: () -> Unit = {},
@@ -608,6 +618,12 @@ fun AmazeGameplayBottomBar(
     val chipBorder = if (isDark) Color(0xFF47587A) else Color(0xFFD7C2A6)
     val contentTint = if (isDark) Color(0xFFFFFFFF) else Color(0xFF3E240E)
     val isAutoSolveLocked = autoSolveCooldownSeconds > 0 && !isAutoSolving
+
+    val restartLabel = if (restartCost <= 0) {
+        if (freeRestartsRemaining in 1..5) "إعادة (مجاناً $freeRestartsRemaining)" else "إعادة (مجاناً)"
+    } else {
+        "إعادة (${restartCost}🪙)"
+    }
 
     val hintLabel = when {
         freeHintsRemaining > 0 -> "تلميح ($freeHintsRemaining)"
@@ -642,15 +658,16 @@ fun AmazeGameplayBottomBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Restart button: free up to 5 times, then requires points
             BottomActionChip(
-                icon = Icons.AutoMirrored.Filled.Undo,
-                label = "تراجع",
-                enabled = canUndo,
-                tint = if (canUndo) contentTint else if (isDark) Color(0xFFCFD8DC) else Color(0xFF8D745C),
+                icon = Icons.Default.Refresh,
+                label = restartLabel,
+                enabled = true,
+                tint = if (isDark) Color(0xFFFFB74D) else Color(0xFFB36A22),
                 chipBg = chipBg,
                 chipBorder = chipBorder,
-                testTag = "undo_button",
-                onClick = onUndoClick
+                testTag = "restart_with_points_button",
+                onClick = onRestartWithPointsClick
             )
 
             BottomActionChip(
@@ -830,7 +847,8 @@ fun AmazeSettingsDialog(
     screenPrivacyProtection: Boolean = false,
     onToggleScreenPrivacyProtection: (Boolean) -> Unit = {},
     onOpenSecurityShieldDialog: () -> Unit = {},
-    onRestartLevel: () -> Unit
+    onRestartLevel: () -> Unit,
+    onExitToMenu: () -> Unit = {}
 ) {
     val activeThemeMode = AppThemeMode.fromId(profile.themeMode)
     val activeArrowTipStyle = ArrowTipStyle.fromId(profile.arrowTipStyle)
@@ -1907,6 +1925,38 @@ fun AmazeSettingsDialog(
                                 )
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                onDismiss()
+                                onExitToMenu()
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.2.dp, if (isDark) Color(0xFFEF5350).copy(alpha = 0.6f) else Color(0xFFC62828).copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = if (isDark) Color(0xFFFF8A80) else Color(0xFFC62828)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .testTag("exit_to_menu_from_settings_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "العودة إلى القائمة الرئيسية",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            )
+                        }
                     }
 
                     // Extra bottom spacing so content never touches or overlaps mobile navigation bars
@@ -2893,13 +2943,16 @@ fun AmazeGameOverDialog(
     feedbackMessage: String? = null,
     isTimeOut: Boolean = false,
     isDark: Boolean = false,
+    onFreeRetrySameMode: () -> Unit = {},
     onBuyAttemptsAndContinue: () -> Unit = {},
     onBuyStayInSameLevel: () -> Unit = {},
-    onRefillLives: () -> Unit,
-    onRestartLevel: () -> Unit
+    onRefillLives: () -> Unit = {},
+    onRestartLevel: () -> Unit = {},
+    onExitToMenu: () -> Unit = {}
 ) {
-    val extraAttemptsCost = GameRepository.computeExtraAttemptsCost(profile.totalPurchasesCount)
-    val stayInSameLevelCost = GameRepository.computeStayInModeCost(profile.totalPurchasesCount)
+    val isEarlyLevel = levelNumber <= 6
+    val extraAttemptsCost = if (isEarlyLevel) 0 else GameRepository.computeExtraAttemptsCost(profile.totalPurchasesCount)
+    val stayInSameLevelCost = if (isEarlyLevel) 0 else GameRepository.computeStayInModeCost(profile.totalPurchasesCount)
 
     val dialogBg = if (isDark) Color(0xFF181F2C) else Color(0xFFFAF3E6)
     val dialogBorder = if (isDark) Color(0xFF2C394F) else Color(0xFFE2D4BF)
@@ -2908,8 +2961,6 @@ fun AmazeGameOverDialog(
     val pillBg = if (isDark) Color(0xFF232D3F) else Color(0xFFEDE0CA)
     val pillTextColor = if (isDark) Color(0xFFFFB74D) else Color(0xFF8C4A15)
     val dividerColor = if (isDark) Color(0xFF2C394F) else Color(0xFFD7C6B0)
-    val freeButtonBorder = if (isDark) Color(0xFFD9822B) else Color(0xFFB36A22)
-    val freeButtonText = if (isDark) Color(0xFFFFB74D) else Color(0xFF8C4A15)
 
     Dialog(
         onDismissRequest = {},
@@ -2946,7 +2997,13 @@ fun AmazeGameOverDialog(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "تابع تقدمك بالنقاط أو ابدأ محاولة جديدة:",
+                    text = if (isEarlyLevel) {
+                        "مستويات البداية (1–6): فتح وإعادة مجانية بالكامل لكسب النقاط!"
+                    } else if (isTimeOut) {
+                        "لديك محاولة مجانية لفتح وإعادة نفس الوضع مجاناً:"
+                    } else {
+                        "تابع تقدمك بالنقاط أو ابدأ محاولة جديدة:"
+                    },
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -2955,7 +3012,7 @@ fun AmazeGameOverDialog(
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Current Points Balance Pill
                 Surface(
@@ -2972,6 +3029,27 @@ fun AmazeGameOverDialog(
                         color = pillTextColor,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                     )
+                }
+
+                if (isEarlyLevel) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isDark) Color(0xFF1E3A2F) else Color(0xFFE8F5E9),
+                        border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "🎁 مرحلة تأسيسية (المستوى $levelNumber): الإعادة ومتابعة اللعب مجانية بالكامل بدون خصم نقاط حتى تجمع رصيداً كافياً!",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            ),
+                            color = if (isDark) Color(0xFFA5D6A7) else Color(0xFF1B5E20),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
                 }
 
                 if (feedbackMessage != null) {
@@ -2998,7 +3076,61 @@ fun AmazeGameOverDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Option 1: Buy +5 Attempts (Warm Amber/Bronze - High Contrast & Harmonious)
+                // Action 1: Free Retry in Same Mode (المحاولة المجانية في نفس الوضع والمرحلة)
+                // Prominent when time runs out OR in early levels (<= 6)
+                if (isTimeOut || isEarlyLevel) {
+                    Button(
+                        onClick = onFreeRetrySameMode,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2E7D32),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("free_retry_same_mode_button")
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "محاولة مجانية (إعادة نفس الوضع) ⏱️",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    ),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "إعادة فتح نفس المستوى والوضع مع 5 محاولات ووقت كامل مجاناً",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Normal
+                                ),
+                                color = Color.White.copy(alpha = 0.92f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Action 2: Continue in-place (+5 Attempts)
+                // Free if levelNumber <= 6, or costs points if levelNumber > 6
                 Button(
                     onClick = onBuyAttemptsAndContinue,
                     shape = RoundedCornerShape(14.dp),
@@ -3024,8 +3156,13 @@ fun AmazeGameOverDialog(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
+                            val attemptsLabel = if (isEarlyLevel) {
+                                "متابعة اللعب مجاناً (+5 محاولات ووقت) 🎁"
+                            } else {
+                                "متابعة اللعب (+5 محاولات) • $extraAttemptsCost ⭐"
+                            }
                             Text(
-                                text = "متابعة اللعب (+5 محاولات) • $extraAttemptsCost ⭐",
+                                text = attemptsLabel,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.5.sp
@@ -3046,86 +3183,133 @@ fun AmazeGameOverDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                // If not early level and not timeout: offer staying in mode or free retry
+                if (!isEarlyLevel && !isTimeOut) {
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // Option 2: Buy Stay in the Same Level & Mode (Refined Slate / Warm Navy)
-                Button(
-                    onClick = onBuyStayInSameLevel,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDark) Color(0xFF2C394F) else Color(0xFF5D4037),
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("buy_stay_same_level_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "تثبيت وضع (${currentDifficulty.arabicLabel}) • $stayInSameLevelCost ⭐",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                    // Option to retry same mode for free
+                    OutlinedButton(
+                        onClick = onFreeRetrySameMode,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.2.dp, Color(0xFF2E7D32)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (isDark) Color(0xFFA5D6A7) else Color(0xFF1B5E20)
                         ),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = dividerColor)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Option 3: Free fallback — escalates to a harder difficulty with a brand-new board
-                OutlinedButton(
-                    onClick = onRefillLives,
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.2.dp, if (isDark) Color(0xFF475569) else Color(0xFFC7B59F)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A)
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("restart_from_scratch_button")
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("free_retry_in_attempts_mode_button")
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = null,
-                                tint = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A),
                                 modifier = Modifier.size(17.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "محاولة جديدة بوضع أصعب مجاناً (5 محاولات)",
+                                text = "محاولة جديدة في نفس الوضع مجاناً (5 محاولات)",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp
-                                ),
-                                textAlign = TextAlign.Center
+                                )
                             )
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Option: Stay in Mode with Points
+                    Button(
+                        onClick = onBuyStayInSameLevel,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDark) Color(0xFF2C394F) else Color(0xFF5D4037),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("buy_stay_same_level_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "توليد لوحة جديدة بتعقيد وتحدٍّ أعلى 🔥",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Medium
+                            text = "تثبيت وضع (${currentDifficulty.arabicLabel}) • $stayInSameLevelCost ⭐",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
                             ),
-                            color = if (isDark) Color(0xFFFFB74D) else Color(0xFF8C4A15),
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Harder Mode Challenge
+                    OutlinedButton(
+                        onClick = onRefillLives,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.2.dp, if (isDark) Color(0xFF475569) else Color(0xFFC7B59F)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF53351A)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("restart_from_scratch_button")
+                    ) {
+                        Text(
+                            text = "تحدي وضع أصعب جديد 🔥 (5 محاولات)",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp
+                            ),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = dividerColor)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Bottom Safe Exit Button: Return to Main Menu so player is NEVER stuck
+                OutlinedButton(
+                    onClick = onExitToMenu,
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.2.dp, if (isDark) Color(0xFF5A6882) else Color(0xFFB0997D)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF4E3117)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("game_over_back_to_menu_button")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "الرجوع للشاشة الرئيسية",
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "الرجوع للشاشة الرئيسية",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
                         )
                     }
                 }

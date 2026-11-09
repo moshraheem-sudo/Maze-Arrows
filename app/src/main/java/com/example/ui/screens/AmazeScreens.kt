@@ -110,7 +110,9 @@ import androidx.compose.material.icons.filled.Shield
 fun MainMenuScreen(
     profile: PlayerProfileEntity,
     themePalette: BoardThemePalette,
+    isGeneratingLevel: Boolean = false,
     onContinueLevel: (Int) -> Unit,
+    onStartReverseShape: (BoardShapeMask) -> Unit = {},
     onRandomizePlayerDna: () -> Unit = {},
     onOpenLevelSelect: () -> Unit,
     onOpenCustomGenerator: () -> Unit,
@@ -216,45 +218,68 @@ fun MainMenuScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Points & Stars Badges
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Unified Points & Stars Badge (زر واحد يجمع النقاط والنجوم معاً)
+                Surface(
+                    onClick = onOpenShop,
+                    shape = RoundedCornerShape(50),
+                    color = cardColor,
+                    tonalElevation = 2.dp,
+                    shadowElevation = 1.dp,
+                    border = BorderStroke(1.dp, cardBorderColor),
+                    modifier = Modifier.testTag("menu_unified_points_badge")
                 ) {
-                    Surface(
-                        onClick = onOpenShop,
-                        shape = RoundedCornerShape(50),
-                        color = cardColor,
-                        tonalElevation = 2.dp,
-                        shadowElevation = 1.dp,
-                        modifier = Modifier.testTag("menu_points_badge")
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "النجوم",
+                                tint = Color(0xFFF3A833),
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Text(
+                                text = "${profile.totalStars}",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp
+                                ),
+                                color = primaryText
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(14.dp)
+                                .background(cardBorderColor)
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ShoppingCart,
-                                contentDescription = "متجر النقاط",
+                                contentDescription = "النقاط",
                                 tint = Color(0xFFD9822B),
                                 modifier = Modifier.size(17.dp)
                             )
                             Text(
                                 text = "${profile.totalScore} نقطة",
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp
+                                ),
                                 color = primaryText
                             )
                         }
                     }
-
-                    StatBadgeChip(
-                        icon = Icons.Default.Star,
-                        iconTint = Color(0xFFF3A833),
-                        text = "${profile.totalStars}",
-                        cardColor = cardColor,
-                        textColor = primaryText
-                    )
                 }
 
                 // Side Icons (Theme & Settings shifted down and to the side with clear spacing)
@@ -399,6 +424,104 @@ fun MainMenuScreen(
                             fontSize = 17.sp
                         )
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 5. Tactical Reverse Shape Modes Section (أوضاع اللعب العكسية التكتيكية)
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = cardColor),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, cardBorderColor, RoundedCornerShape(22.dp))
+                    .testTag("reverse_shape_modes_card")
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "🌀",
+                                fontSize = 19.sp
+                            )
+                            Text(
+                                text = "أوضاع اللعب العكسية التكتيكية",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 15.sp
+                                ),
+                                color = primaryText
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 5 Reverse Shapes: Citadel, Labyrinth, Hourglass, Twin Pillars, Classic Tower
+                    val reverseShapes = listOf(
+                        BoardShapeMask.STEPPED_CITADEL,
+                        BoardShapeMask.LABYRINTH_CORE,
+                        BoardShapeMask.HOURGLASS,
+                        BoardShapeMask.TWIN_PILLARS,
+                        BoardShapeMask.CLASSIC_TOWER
+                    )
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(reverseShapes, key = { it.name }) { shape ->
+                            Surface(
+                                onClick = {
+                                    if (!isGeneratingLevel) {
+                                        onStartReverseShape(shape)
+                                    }
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (themePalette.isDark) Color(0xFF262E3D) else Color(0xFFF7EFE2),
+                                border = BorderStroke(1.2.dp, cardBorderColor),
+                                shadowElevation = 1.dp,
+                                modifier = Modifier.testTag("reverse_shape_mode_${shape.name.lowercase()}")
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .width(96.dp)
+                                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = shape.iconEmoji,
+                                        fontSize = 26.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = shape.arabicName,
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 13.sp
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = primaryText,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -755,6 +878,47 @@ fun MainMenuScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (isGeneratingLevel) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Black.copy(alpha = 0.55f)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardColor),
+                        border = BorderStroke(1.5.dp, cardBorderColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = Color(0xFFB36A22),
+                                modifier = Modifier.size(42.dp),
+                                strokeWidth = 3.5.dp
+                            )
+                            Text(
+                                text = "جاري إعداد اللوحة التكتيكية...",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = primaryText,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1379,19 +1543,22 @@ fun GameplayScreen(
     uiState: GameplayUiState,
     profile: PlayerProfileEntity,
     themePalette: BoardThemePalette,
+    restartCost: Int = 20,
     onArrowTapped: (Int) -> Unit,
     onPreviousLevelClick: () -> Unit,
     onNextUnlockedLevelClick: () -> Unit,
     onHintClick: () -> Unit,
-    onUndoClick: () -> Unit,
+    onUndoClick: () -> Unit = {},
     onTogglePreviewMode: () -> Unit,
     onAutoSolveToggle: () -> Unit,
     onResetZoomClick: () -> Unit,
     onRestartLevel: () -> Unit,
+    onRestartWithPointsClick: () -> Unit = {},
     onNextLevel: () -> Unit,
     onRefillLives: () -> Unit,
     onBuyAttemptsAndContinue: () -> Unit = {},
     onBuyStayInSameLevel: () -> Unit = {},
+    onFreeRetrySameMode: () -> Unit = {},
     onOpenShop: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onOpenThemes: () -> Unit,
@@ -1418,8 +1585,12 @@ fun GameplayScreen(
             isCustomLevel = level.isCustomGenerated,
             difficulty = level.difficulty,
             themePalette = themePalette,
+            shapeMask = level.shapeMask,
             totalScore = profile.totalScore,
+            totalStars = profile.totalStars,
+            restartCost = restartCost,
             isModeLocked = profile.lockedDifficultyTierName.isNotBlank(),
+            onRestartWithPointsClick = onRestartWithPointsClick,
             onBackClick = onBackToMenu,
             onPreviousLevelClick = onPreviousLevelClick,
             onNextUnlockedLevelClick = onNextUnlockedLevelClick,
@@ -1498,11 +1669,12 @@ fun GameplayScreen(
 
         // 4. Bottom Action Dock
         AmazeGameplayBottomBar(
-            canUndo = uiState.undoStack.isNotEmpty(),
+            restartCost = restartCost,
+            freeRestartsRemaining = uiState.freeRestartsRemaining,
             zoomScale = boardZoomScale,
             isAutoSolving = uiState.isAutoSolving,
             themePalette = themePalette,
-            onUndoClick = onUndoClick,
+            onRestartWithPointsClick = onRestartWithPointsClick,
             onHintClick = onHintClick,
             onZoomInClick = { boardZoomScale = (boardZoomScale + 0.25f).coerceAtMost(3.6f) },
             onZoomOutClick = { boardZoomScale = (boardZoomScale - 0.25f).coerceAtLeast(0.60f) },
@@ -1539,10 +1711,12 @@ fun GameplayScreen(
             profile = profile,
             feedbackMessage = uiState.shopFeedbackMessage,
             isDark = themePalette.isDark,
+            onFreeRetrySameMode = onFreeRetrySameMode,
             onBuyAttemptsAndContinue = onBuyAttemptsAndContinue,
             onBuyStayInSameLevel = onBuyStayInSameLevel,
             onRefillLives = onRefillLives,
-            onRestartLevel = onRestartLevel
+            onRestartLevel = onRestartLevel,
+            onExitToMenu = onBackToMenu
         )
     }
 }

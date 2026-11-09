@@ -122,6 +122,36 @@ class SoundAndHapticManager(private val context: Context) {
         }
     }
 
+    fun playGameStart() {
+        if (vibrationEnabled) {
+            vibrateClick(12L)
+        }
+        if (!soundEnabled) return
+        scope.launch {
+            playTone(392.00, 70, 0.12)
+            delay(50)
+            playTone(523.25, 90, 0.15)
+        }
+    }
+
+    fun playLevelVictorySound() {
+        playVictoryFanfare()
+    }
+
+    fun playStarCollectedSound() {
+        if (vibrationEnabled) {
+            vibrateClick(16L)
+        }
+        if (!soundEnabled) return
+        scope.launch {
+            playTone(523.25, 80, 0.14)
+            delay(50)
+            playTone(659.25, 90, 0.16)
+            delay(60)
+            playTone(783.99, 130, 0.20)
+        }
+    }
+
     private fun vibrateVictoryCelebration() {
         try {
             val v = getVibrator() ?: return

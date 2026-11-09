@@ -113,4 +113,73 @@ class ExampleUnitTest {
             )
         }
     }
+
+    @Test
+    fun generatedLevels_haveZeroAdjacentArrowsPointingInSameDirection_andContainStarArrows() {
+        for (lvl in listOf(1, 2)) {
+            val level = SmartLevelGenerator.generateCampaignLevel(lvl, playerDnaSeed = 42L)
+            val conflicts = SmartLevelGenerator.countAdjacentSameDirectionConflicts(
+                level.arrows,
+                level.gridWidth,
+                level.gridHeight
+            )
+            assertEquals("Level $lvl must have ZERO adjacent arrows in the same direction", 0, conflicts)
+            assertTrue("Level $lvl must be 100% solvable", level.solverMetrics.isSolvable)
+        }
+
+        for (lvl in listOf(3, 7, 15, 30)) {
+            val level = SmartLevelGenerator.generateCampaignLevel(lvl, playerDnaSeed = 42L)
+            assertTrue("Level $lvl must be 100% solvable", level.solverMetrics.isSolvable)
+            if (level.arrows.size >= 8) {
+                val starArrows = level.arrows.filter { it.hasSparkleBadge }
+                assertTrue("Level $lvl must contain star arrows (found ${starArrows.size})", starArrows.isNotEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun allArrowheads_acrossAllLevelsAndArchetypes_strictlyAlignWithTheirShafts() {
+        for (lvl in 1..20) {
+            val level = SmartLevelGenerator.generateCampaignLevel(lvl, playerDnaSeed = 9999L + lvl)
+            for (arrow in level.arrows) {
+                assertTrue("Arrow must have at least 2 cells", arrow.cells.size >= 2)
+                val head = arrow.cells.last()
+                val neck = arrow.cells[arrow.cells.size - 2]
+                val expectedDx = head.x - neck.x
+                val expectedDy = head.y - neck.y
+                assertEquals(
+                    "Arrowhead in level $lvl (arrow id=${arrow.id}) must point along its shaft dx",
+                    expectedDx,
+                    arrow.headDirection.dx
+                )
+                assertEquals(
+                    "Arrowhead in level $lvl (arrow id=${arrow.id}) must point along its shaft dy",
+                    expectedDy,
+                    arrow.headDirection.dy
+                )
+                assertEquals(
+                    "naturalHeadDirection must equal headDirection",
+                    arrow.naturalHeadDirection,
+                    arrow.headDirection
+                )
+            }
+        }
+
+        for (archetype in LevelAlgorithmArchetype.entries) {
+            val custom = SmartLevelGenerator.generateCustomLevel(
+                difficulty = DifficultyTier.PRO,
+                shapeMask = BoardShapeMask.STEPPED_CITADEL,
+                archetype = archetype,
+                playerDnaSeed = 12345L,
+                seed = 98765L
+            )
+            for (arrow in custom.arrows) {
+                val head = arrow.cells.last()
+                val neck = arrow.cells[arrow.cells.size - 2]
+                assertEquals(head.x - neck.x, arrow.headDirection.dx)
+                assertEquals(head.y - neck.y, arrow.headDirection.dy)
+                assertEquals(arrow.naturalHeadDirection, arrow.headDirection)
+            }
+        }
+    }
 }

@@ -39,7 +39,7 @@ object ArrowPuzzleSolver {
     ): MoveCheckResult {
         val grid = precomputedGrid ?: buildOccupancyGrid(gridWidth, gridHeight, activeArrows)
         val head = arrow.head
-        val dir = arrow.headDirection
+        val dir = arrow.naturalHeadDirection
 
         val blockerId = GridRaycaster.findFirstBlocker(
             gridWidth,
@@ -91,14 +91,15 @@ object ArrowPuzzleSolver {
         if (activeArrows.isEmpty()) return emptyList()
         val grid = buildOccupancyGrid(gridWidth, gridHeight, activeArrows)
         return activeArrows.filter { arrow ->
+            val dir = arrow.naturalHeadDirection
             GridRaycaster.findFirstBlocker(
                 gridWidth,
                 gridHeight,
                 grid,
                 arrow.head.x,
                 arrow.head.y,
-                arrow.headDirection.dx,
-                arrow.headDirection.dy,
+                dir.dx,
+                dir.dy,
                 arrow.id
             ) == -1
         }
@@ -120,14 +121,15 @@ object ArrowPuzzleSolver {
         val blockedCountByBlocker = HashMap<Int, Int>()
 
         for (arrow in activeArrows) {
+            val dir = arrow.naturalHeadDirection
             val blockerId = GridRaycaster.findFirstBlocker(
                 gridWidth,
                 gridHeight,
                 grid,
                 arrow.head.x,
                 arrow.head.y,
-                arrow.headDirection.dx,
-                arrow.headDirection.dy,
+                dir.dx,
+                dir.dy,
                 arrow.id
             )
             if (blockerId == -1) {
@@ -182,14 +184,15 @@ object ArrowPuzzleSolver {
         while (remaining.isNotEmpty()) {
             val currentWave = ArrayList<WindingArrow>()
             for (arrow in remaining.values) {
+                val dir = arrow.naturalHeadDirection
                 val blocker = GridRaycaster.findFirstBlocker(
                     gridWidth,
                     gridHeight,
                     grid,
                     arrow.head.x,
                     arrow.head.y,
-                    arrow.headDirection.dx,
-                    arrow.headDirection.dy,
+                    dir.dx,
+                    dir.dy,
                     arrow.id
                 )
                 if (blocker == -1) {
@@ -252,7 +255,7 @@ object ArrowPuzzleSolver {
     ): StraightLineInspection {
         val grid = buildOccupancyGrid(gridWidth, gridHeight, activeArrows)
         val head = arrow.head
-        val dir = arrow.headDirection
+        val dir = arrow.naturalHeadDirection
         val intersectingPoints = ArrayList<GridPoint>()
         val intersectingArrowIds = LinkedHashSet<Int>()
 
